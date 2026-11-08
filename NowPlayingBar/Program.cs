@@ -503,7 +503,7 @@ class BarWidget : Form
     void ShowNothing()
     {
         hasPendingClear = false; changing = false; session = null;
-        title = "Nada sonando"; artist = ""; var old = cover; cover = null; old?.Dispose(); playing = false; Invalidate();
+        title = "Nada sonando"; artist = ""; coverPending = false; var old = cover; cover = null; old?.Dispose(); playing = false; Invalidate();
     }
 
     // ---- Estado "cambiando de canción" ----
@@ -527,11 +527,24 @@ class BarWidget : Form
             var all = mgr?.GetSessions();
             if (all == null || all.Count == 0) ShowNothing(); else { hasPendingClear = false; session = null; PickSession(); }
         }
+        if (coverPending)
+        {
+            var w = (DateTime.Now - coverPendingAt).TotalSeconds;
+            if (w > 2) { coverPending = false; var old = cover; cover = null; old?.Dispose(); Invalidate(); } // la canción no tiene portada
+            else if (!coverRetrying && w > 0.4) _ = RetryCover();
+        }
         if (changing && !hasPendingClear && (DateTime.Now - changeStart).TotalSeconds > 2.5)
         {
             changing = false; // no llegó nada distinto (p. ej. "anterior" reinició la misma canción)
             _ = UpdateMedia();
         }
+    }
+
+    bool coverPending, coverRetrying; DateTime coverPendingAt;
+    async Task RetryCover()
+    {
+        coverRetrying = true;
+        try { await UpdateMedia(); await Task.Delay(300); } finally { coverRetrying = false; }
     }
 
     void UpdatePlayback()
@@ -565,9 +578,20 @@ class BarWidget : Form
             }
             if (changing && changeFromSkip && p.Title == titleAtChange && (DateTime.Now - changeStart).TotalSeconds < 2.5) { img?.Dispose(); return; }
             changing = false;
+            bool newSong = p.Title != title || (p.Artist ?? "") != artist;
             title = p.Title;
             artist = p.Artist ?? "";
-            var old = cover; cover = img; old?.Dispose(); // liberar la portada anterior
+            if (img == null && cover != null && (newSong || coverPending))
+            {
+                // La portada nueva suele llegar un instante después que el título:
+                // mantener la anterior atenuada en vez de mostrar el icono un frame
+                if (!coverPending) { coverPending = true; coverPendingAt = DateTime.Now; }
+            }
+            else
+            {
+                coverPending = false;
+                var old = cover; cover = img; old?.Dispose(); // liberar la portada anterior
+            }
         }
         catch { }
         Invalidate();
@@ -580,7 +604,7 @@ class BarWidget : Form
         var art = Art;
         if (cover != null)
         {
-            if (changing)
+            if (changing || coverPending)
             {
                 // Portada atenuada mientras cambia de canción
                 using var ia = new System.Drawing.Imaging.ImageAttributes();
