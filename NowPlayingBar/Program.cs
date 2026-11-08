@@ -532,6 +532,7 @@ class BarWidget : Form
             return;
         }
         int d = i == 0 ? -1 : 1;
+        cx -= d; // el icono (triángulo + barra) ocupa 10 px asimétricos: compensar 1 px para que quede centrado
         g.FillPolygon(w, new[] { new PointF(cx - 4 * d, cy - 6), new PointF(cx + 4 * d, cy), new PointF(cx - 4 * d, cy + 6) });
         g.FillRectangle(w, d > 0 ? cx + 4 : cx - 6, cy - 6, 2, 12);
     }
