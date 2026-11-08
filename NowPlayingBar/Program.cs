@@ -283,6 +283,10 @@ class BarWidget : Form
     [DllImport("user32.dll")] static extern bool DestroyIcon(IntPtr h);
 
     // Copia el color de la barra tomando un píxel justo encima del widget
+    struct POINT { public int X, Y; }
+    [DllImport("user32.dll")] static extern IntPtr WindowFromPoint(POINT p);
+    [DllImport("user32.dll")] static extern IntPtr GetAncestor(IntPtr h, uint flags);
+
     void MatchBarColor()
     {
         if (taskbar == IntPtr.Zero || !GetWindowRect(taskbar, out var r)) return;
@@ -290,6 +294,8 @@ class BarWidget : Form
         int px, py;
         if (vertical) { if (lastPos.X < 3) return; px = r.L + lastPos.X / 2; py = r.T + lastPos.Y + H / 2; }
         else { if (lastPos.Y < 3) return; px = r.L + lastPos.X + W / 2; py = r.T + lastPos.Y / 2; }
+        // Si una ventana o menú tapa ese punto, no copiar su color (solo leer cuando ahí está la barra)
+        if (GetAncestor(WindowFromPoint(new POINT { X = px, Y = py }), 2) != taskbar) return;
         var dc = GetDC(IntPtr.Zero);
         uint c = GetPixel(dc, px, py);
         ReleaseDC(IntPtr.Zero, dc);
