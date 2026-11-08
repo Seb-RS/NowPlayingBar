@@ -671,6 +671,61 @@ class BarWidget : Form
         return !IsBrowser(id) && !VideoApps.Any(v => l.Contains(v));
     }
 
+    // ¿Lo que suena en el navegador es una canción? El navegador no lo dice: se combinan varias pistas.
+    static readonly System.Text.RegularExpressions.Regex SongTitle = new(
+        @"official\s*(music\s*)?(video|audio|visualizer)|\b(lyrics?|letra|audio|videoclip|remix|ft\.|feat\.)\b|\(\s*(slowed|sped up|reverb)",
+        System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+    static async Task<bool> BrowserIsMusic(GlobalSystemMediaTransportControlsSession s, GlobalSystemMediaTransportControlsSessionMediaProperties p)
+    {
+        string title = p.Title ?? "", artist = p.Artist ?? "", album = p.AlbumTitle ?? "";
+        if (title.Trim().Length == 0) return false;
+        // 1. Muy largo (película, directo, podcast): video
+        try { var tl = s.GetTimelineProperties(); if (tl != null && (tl.EndTime - tl.StartTime).TotalMinutes > 12) return false; } catch { }
+        // 2. Trae álbum (YouTube Music, Deezer…): canción
+        if (album.Trim().Length > 0) return true;
+        // 3. La pestaña activa es YouTube Music: canción
+        var win = BrowserTabTitle(title);
+        if (win != null && win.Contains("YouTube Music", StringComparison.OrdinalIgnoreCase)) return true;
+        // 4. Canales de música de YouTube ("Artista - Topic", "...VEVO") o título con formato de canción
+        if (artist.EndsWith(" - Topic", StringComparison.OrdinalIgnoreCase) || artist.Contains("VEVO", StringComparison.OrdinalIgnoreCase)) return true;
+        if (SongTitle.IsMatch(title)) return true;
+        if (artist.Length > 0 && title.StartsWith(artist + " - ", StringComparison.OrdinalIgnoreCase)) return true;
+        // 5. Sin autor (película, video suelto): video
+        if (artist.Trim().Length == 0) return false;
+        // 6. Pestaña de YouTube normal, o miniatura apaisada (16:9) en vez de portada cuadrada: video
+        if (win != null && win.Contains("- YouTube", StringComparison.OrdinalIgnoreCase)) return false;
+        try
+        {
+            if (p.Thumbnail != null)
+            {
+                using var st = (await p.Thumbnail.OpenReadAsync()).AsStreamForRead();
+                using var img = Image.FromStream(st);
+                if (img.Width > img.Height * 1.25) return false;
+            }
+        }
+        catch { }
+        return true; // trae artista y nada indica lo contrario (SoundCloud, Bandcamp…)
+    }
+
+    // Título de la ventana del navegador cuya pestaña activa contiene ese título (o null si no está a la vista)
+    static string BrowserTabTitle(string title)
+    {
+        string found = null;
+        var sb = new System.Text.StringBuilder(512);
+        EnumWindows((h, _) =>
+        {
+            if (!IsWindowVisible(h)) return true;
+            sb.Clear(); GetWindowText(h, sb, sb.Capacity);
+            var t = sb.ToString();
+            if (t.Length > 0 && t.Contains(title, StringComparison.OrdinalIgnoreCase)) { found = t; return false; }
+            return true;
+        }, IntPtr.Zero);
+        return found;
+    }
+    [DllImport("user32.dll")] static extern bool IsWindowVisible(IntPtr h);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int GetWindowText(IntPtr h, System.Text.StringBuilder s, int n);
+
     async void ClassifyAsync(GlobalSystemMediaTransportControlsSession s, string id)
     {
         try
@@ -679,8 +734,7 @@ class BarWidget : Form
             var l = id.ToLowerInvariant();
             bool music;
             if (p.PlaybackType == Windows.Media.MediaPlaybackType.Video) music = false;
-            // Navegador: es canción si trae artista (o álbum) además del título; una película o un video suelto solo trae título
-            else if (IsBrowser(id)) music = !string.IsNullOrWhiteSpace(p.Title) && (!string.IsNullOrWhiteSpace(p.Artist) || !string.IsNullOrWhiteSpace(p.AlbumTitle));
+            else if (IsBrowser(id)) music = await BrowserIsMusic(s, p);
             else music = !VideoApps.Any(v => l.Contains(v));
             bool changed = !musicInfo.TryGetValue(id, out var old) || old != music;
             musicInfo[id] = music;
