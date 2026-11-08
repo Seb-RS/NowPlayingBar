@@ -286,7 +286,7 @@ static class Fluent
             d.BeginInvoke(() =>
             {
                 if (!GetWindowRect(p.Handle, out var pr) || !GetWindowRect(d.Handle, out var dr)) return;
-                int x = dr.L >= (pr.L + pr.R) / 2 ? pr.R - 2 : pr.L - (dr.R - dr.L) + 2;
+                int x = dr.L >= (pr.L + pr.R) / 2 ? pr.R - 4 : pr.L - (dr.R - dr.L) + 4; // como Windows 11: el submenú monta unos px sobre el padre
                 SetWindowPos(d.Handle, IntPtr.Zero, x, dr.T, 0, 0, 0x0001 | 0x0004 | 0x0010); // NOSIZE | NOZORDER | NOACTIVATE
             });
         };
