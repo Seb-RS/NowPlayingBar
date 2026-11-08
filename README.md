@@ -58,6 +58,7 @@ Then open the Widgets board → **+** → **Now Playing**.
 
 ## Code signing policy
 
+Releases are **not code-signed** yet.
 
 - Committers and reviewers: [Seb-RS](https://github.com/Seb-RS)
 - Approvers: [Seb-RS](https://github.com/Seb-RS)
