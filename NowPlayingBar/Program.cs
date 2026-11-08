@@ -1157,5 +1157,43 @@ class BarWidget : Form
         catch { }
     }
 
+    // Doble clic fuera de los botones: traer al frente la ventana de la app que reproduce
+    protected override void OnMouseDoubleClick(MouseEventArgs e)
+    {
+        if (e.Button != MouseButtons.Left || session == null || HitBtn(e.Location) >= 0) return;
+        string aumid = session.SourceAppUserModelId ?? "";
+        string name = aumid.Split('\\', '/').Last();
+        if (name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) name = name[..^4];
+        var pids = new System.Collections.Generic.HashSet<uint>();
+        try { foreach (var pr in System.Diagnostics.Process.GetProcessesByName(name)) pids.Add((uint)pr.Id); } catch { }
+        IntPtr best = IntPtr.Zero, any = IntPtr.Zero;
+        if (pids.Count > 0)
+            EnumWindows((h, _) =>
+            {
+                GetWindowThreadProcessId(h, out uint pid);
+                if (!pids.Contains(pid) || !IsWindowVisible(h) || GetWindow(h, 4) != IntPtr.Zero) return true;
+                var sb = new System.Text.StringBuilder(512); GetWindowText(h, sb, 512);
+                string t = sb.ToString(); if (t.Length == 0) return true;
+                if (any == IntPtr.Zero) any = h;
+                if (best == IntPtr.Zero && title.Length > 2 && t.Contains(title, StringComparison.OrdinalIgnoreCase)) best = h;
+                return true;
+            }, IntPtr.Zero);
+        var w = best != IntPtr.Zero ? best : any;
+        if (w != IntPtr.Zero)
+        {
+            ShowWindow(w, IsIconic(w) ? 9 : 5);
+            SetForegroundWindow(w);
+        }
+        else if (aumid.Length > 0)
+        {
+            // Apps empaquetadas (Microsoft Store): abrirlas por su AUMID
+            try { System.Diagnostics.Process.Start("explorer.exe", "shell:AppsFolder\\" + aumid); } catch { }
+        }
+    }
+    [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
+    [DllImport("user32.dll")] static extern IntPtr GetWindow(IntPtr h, uint cmd);
+    [DllImport("user32.dll")] static extern bool IsIconic(IntPtr h);
+    [DllImport("user32.dll")] static extern bool SetForegroundWindow(IntPtr h);
+
     protected override void OnFormClosed(FormClosedEventArgs e) { if (tray != null) { tray.Visible = false; tray.Dispose(); } base.OnFormClosed(e); }
 }
