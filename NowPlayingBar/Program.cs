@@ -548,7 +548,7 @@ class BarWidget : Form
         SetLayeredWindowAttributes(Handle, 0, 255, 0x2); // LWA_ALPHA opaco
         lastPos = Rectangle.Empty;
         Place();
-        ShowWindow(Handle, 4); // SW_SHOWNOACTIVATE
+        ShowWindow(Handle, idle ? 0 : 4); // SW_SHOWNOACTIVATE (oculta si no suena nada)
     }
 
     Rectangle lastPos;
@@ -789,7 +789,16 @@ class BarWidget : Form
         HookAll(all);
 
         GlobalSystemMediaTransportControlsSession s = null;
-        if (pinned != null) s = all.FirstOrDefault(x => x.SourceAppUserModelId == pinned);
+        // Fuente fija: manda mientras suena; si se detiene más de 3 s (cambio de canción incluido), pasa a la selección automática
+        if (pinned != null)
+        {
+            s = all.FirstOrDefault(x => x.SourceAppUserModelId == pinned);
+            if (s != null && !IsPlaying(s))
+            {
+                var since = stopAt.TryGetValue(pinned, out var ps) ? (DateTime.Now - ps).TotalSeconds : 99;
+                if (since >= 3) s = null; else System.Threading.Tasks.Task.Delay(3100).ContinueWith(_ => BeginInvoke(PickSession));
+            }
+        }
         if (s == null)
         {
             // Modo "Solo música": los videos y películas se ignoran por completo
@@ -821,12 +830,17 @@ class BarWidget : Form
         if (s?.SourceAppUserModelId == session?.SourceAppUserModelId && (s == null) == (session == null)) { session = s; return; }
         session = s;
         if (s == null) { ShowNothing(); return; }
+        SetIdle(false);
         _ = UpdateMedia(); UpdatePlayback();
     }
+
+    bool idle;
+    void SetIdle(bool on) { if (idle == on) return; idle = on; if (IsHandleCreated) ShowWindow(Handle, on ? 0 : 4); }
 
     void ShowNothing()
     {
         hasPendingClear = false; changing = false; session = null;
+        SetIdle(true); // no suena nada: la barra se oculta hasta que aparezca una canción
         title = L.T("nothing"); artist = ""; coverPending = false; var old = cover; cover = null; old?.Dispose(); playing = false; Invalidate();
     }
 
