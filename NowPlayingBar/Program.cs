@@ -197,13 +197,35 @@ class BarWidget : Form
             }
         };
         menu.Items.Add(scr);
+
+        // Fuente: automático (prioridad) o fijar una app concreta
+        var src = new ToolStripMenuItem("Fuente");
+        src.DropDownItems.Add("-");
+        src.DropDownOpening += (_, _) =>
+        {
+            src.DropDownItems.Clear();
+            var auto = new ToolStripMenuItem("Automático") { Checked = pinned == null };
+            auto.Click += (_, _) => { SetPinned(null); PickSession(); };
+            src.DropDownItems.Add(auto);
+            var all = mgr?.GetSessions();
+            if (all == null || all.Count == 0) { src.DropDownItems.Add(new ToolStripMenuItem("(ningún reproductor abierto)") { Enabled = false }); return; }
+            src.DropDownItems.Add(new ToolStripSeparator());
+            foreach (var x in all)
+            {
+                var id = x.SourceAppUserModelId;
+                var it = new ToolStripMenuItem(AppName(id) + (IsPlaying(x) ? "  ▶" : "")) { Checked = pinned == id };
+                it.Click += (_, _) => { SetPinned(id); PickSession(); };
+                src.DropDownItems.Add(it);
+            }
+        };
+        menu.Items.Add(src);
         menu.Items.Add("Restablecer posición", null, (_, _) => { posX = 220; Place(); Save(); });
         menu.Items.Add("Salir", null, (_, _) => Application.Exit());
         ContextMenuStrip = menu;
         if (owner) tray = new NotifyIcon { Icon = MakeIcon(), Text = "NowPlayingBar", Visible = true, ContextMenuStrip = menu };
 
         // Re-incrustar si explorer.exe se reinicia o cambia el tamaño de la barra
-        watch.Tick += (_, _) => { if (!IsWindow(taskbar) || GetParent(Handle) != taskbar || (GetWindowLong(Handle, -20) & 0x80000) == 0) Embed(); else Place(); MatchBarColor(); };
+        watch.Tick += (_, _) => { if (!IsWindow(taskbar) || GetParent(Handle) != taskbar || (GetWindowLong(Handle, -20) & 0x80000) == 0) Embed(); else Place(); MatchBarColor(); PickSession(); };
         watch.Start();
         _ = InitAsync();
     }
@@ -279,14 +301,82 @@ class BarWidget : Form
         PickSession();
     }
 
+    // ---- Prioridad entre reproductores ----
+    // 1. Si el usuario fijó una app (menú Fuente) y está abierta, se usa esa.
+    // 2. Si no, una app que esté reproduciendo gana a una en pausa.
+    // 3. Si la actual sigue reproduciendo, no se cambia (evita saltos).
+    // 4. Entre varias reproduciendo, la que empezó a sonar más recientemente.
+    // 5. Si nada suena, la que Windows marca como actual.
+    static readonly string SourceCfg = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "NowPlayingBar.source.txt");
+    static string pinned = LoadPinned();
+    static string LoadPinned() { try { var s = File.ReadAllText(SourceCfg).Trim(); return s.Length > 0 ? s : null; } catch { return null; } }
+    static void SetPinned(string id) { pinned = id; try { File.WriteAllText(SourceCfg, id ?? ""); } catch { } }
+
+    readonly System.Collections.Generic.Dictionary<string, DateTime> playStart = new();
+    readonly System.Collections.Generic.HashSet<string> hooked = new();
+
+    static bool IsPlaying(GlobalSystemMediaTransportControlsSession s)
+    {
+        try { return s.GetPlaybackInfo()?.PlaybackStatus == GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing; } catch { return false; }
+    }
+
+    // Nombre legible a partir del identificador de la app (p. ej. "Music.exe" -> "Music")
+    public static string AppName(string id)
+    {
+        if (string.IsNullOrEmpty(id)) return "Desconocido";
+        var n = id.Split('!')[0];
+        n = n.Substring(n.LastIndexOfAny(new[] { '\\', '/' }) + 1);
+        if (n.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) n = n[..^4];
+        int u = n.IndexOf('_'); if (u > 0) n = n[..u];          // paquetes Store: Nombre_hash
+        int d = n.LastIndexOf('.'); if (d >= 0 && d < n.Length - 1) n = n[(d + 1)..]; // Empresa.App -> App
+        return n.Length > 0 ? char.ToUpper(n[0]) + n[1..] : id;
+    }
+
+    void HookAll(System.Collections.Generic.IReadOnlyList<GlobalSystemMediaTransportControlsSession> all)
+    {
+        foreach (var s in all)
+        {
+            var id = s.SourceAppUserModelId;
+            if (IsPlaying(s) && !playStart.ContainsKey(id)) playStart[id] = DateTime.Now;
+            if (!hooked.Add(id)) continue;
+            s.PlaybackInfoChanged += (x, _) =>
+            {
+                bool p = IsPlaying(x);
+                BeginInvoke(() =>
+                {
+                    if (p) playStart[x.SourceAppUserModelId] = DateTime.Now; else playStart.Remove(x.SourceAppUserModelId);
+                    if (session != null && x.SourceAppUserModelId == session.SourceAppUserModelId) UpdatePlayback();
+                    PickSession();
+                });
+            };
+            s.MediaPropertiesChanged += (x, _) =>
+            {
+                BeginInvoke(() => { if (session != null && x.SourceAppUserModelId == session.SourceAppUserModelId) { var t = UpdateMedia(); } });
+            };
+        }
+    }
+
     void PickSession()
     {
-        var s = mgr.GetCurrentSession() ?? mgr.GetSessions().FirstOrDefault(); // cualquier reproductor
-        if (s == session) return;
+        if (mgr == null) return;
+        var all = mgr.GetSessions();
+        HookAll(all);
+
+        GlobalSystemMediaTransportControlsSession s = null;
+        if (pinned != null) s = all.FirstOrDefault(x => x.SourceAppUserModelId == pinned);
+        if (s == null)
+        {
+            var playingNow = all.Where(IsPlaying).ToList();
+            s = playingNow.FirstOrDefault(x => session != null && x.SourceAppUserModelId == session.SourceAppUserModelId)
+                ?? playingNow.OrderByDescending(x => playStart.TryGetValue(x.SourceAppUserModelId, out var t) ? t : DateTime.MinValue).FirstOrDefault()
+                ?? all.FirstOrDefault(x => session != null && x.SourceAppUserModelId == session.SourceAppUserModelId)
+                ?? mgr.GetCurrentSession()
+                ?? all.FirstOrDefault();
+        }
+
+        if (s?.SourceAppUserModelId == session?.SourceAppUserModelId && (s == null) == (session == null)) { session = s; return; }
         session = s;
         if (s == null) { title = "Nada sonando"; artist = ""; cover = null; playing = false; Invalidate(); return; }
-        s.MediaPropertiesChanged += (x, _) => { if (x == session) BeginInvoke(() => { UpdateMedia(); }); };
-        s.PlaybackInfoChanged += (x, _) => { if (x == session) BeginInvoke(UpdatePlayback); };
         _ = UpdateMedia(); UpdatePlayback();
     }
 
