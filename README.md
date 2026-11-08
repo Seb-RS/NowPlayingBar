@@ -38,6 +38,24 @@ Add-AppxPackage -Register out\AppxManifest.xml
 ```
 
 
+## Descarga
+
+Los binarios compilados están en [Releases](https://github.com/Seb-RS/NowPlayingBar/releases). Los compila GitHub Actions directamente desde este código.
+
+## Code signing policy
+
+
+- Committers and reviewers: [Seb-RS](https://github.com/Seb-RS)
+- Approvers: [Seb-RS](https://github.com/Seb-RS)
+
+Only binaries built by GitHub Actions from this repository are signed.
+
+## Privacy policy
+
+This program will not transfer any information to other networked systems unless specifically requested by the user or the person installing or operating it.
+
+NowPlayingBar only reads the media information that Windows exposes locally (title, artist, cover art) and sends play/pause/skip commands to the local media session.
+
 ## Licencia
 
 MIT
