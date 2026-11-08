@@ -23,6 +23,12 @@ static class Program
         catch (System.Threading.AbandonedMutexException) { }
 
         Autostart.EnsureDefault();
+        // Nunca mostrar el diálogo de error de .NET: registrar el fallo y seguir funcionando
+        Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
+        Application.ThreadException += (_, e) =>
+        {
+            try { File.AppendAllText(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "NowPlayingBar.log"), $"{DateTime.Now:s} {e.Exception}\r\n"); } catch { }
+        };
         Application.EnableVisualStyles();
         Application.SetCompatibleTextRenderingDefault(false);
         var (_, screen) = BarWidget.LoadCfg();
@@ -549,7 +555,8 @@ class BarWidget : Form
 
     void UpdatePlayback()
     {
-        playing = session?.GetPlaybackInfo().PlaybackStatus == GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing;
+        // GetPlaybackInfo() devuelve null si el reproductor se está cerrando o cambiando de pista
+        try { playing = session?.GetPlaybackInfo()?.PlaybackStatus == GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing; } catch { playing = false; }
         Invalidate();
     }
 
