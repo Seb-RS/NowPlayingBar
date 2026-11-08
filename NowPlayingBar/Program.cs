@@ -845,7 +845,7 @@ class BarWidget : Form
     {
         if (idle == on) return; idle = on;
         if (!IsHandleCreated) return;
-        if (!on) { if (fadeTimer?.Enabled != true) alpha = 0; ApplyAlpha(); ShowWindow(Handle, 4); }
+        if (!on) { dimOut = false; if (fadeTimer?.Enabled != true) alpha = 0; ApplyAlpha(); ShowWindow(Handle, 4); }
         fadeFrom = alpha; fadeTo = on ? 0 : 255; fadeStart = DateTime.Now;
         if (fadeTimer == null)
         {
@@ -865,6 +865,7 @@ class BarWidget : Form
 
     void ShowNothing()
     {
+        dimOut = changing || coverPending; // si ya estaba atenuada, se desvanece atenuada
         hasPendingClear = false; changing = false; session = null;
         SetIdle(true); // no suena nada: la barra se oculta hasta que aparezca una canción
         // Se mantiene la última canción mientras se desvanece; el contenido se limpia ya oculta
@@ -873,13 +874,14 @@ class BarWidget : Form
     }
     void ClearContent()
     {
+        dimOut = false;
         title = L.T("nothing"); artist = ""; var old = cover; cover = null; old?.Dispose(); playing = false; Invalidate();
     }
 
     // ---- Estado "cambiando de canción" ----
     // Al pulsar anterior/siguiente (o si el reproductor desaparece un momento) se mantiene la canción
     // anterior atenuada hasta que llegan los datos de la nueva, con un máximo de espera.
-    bool changing, hasPendingClear, changeFromSkip;
+    bool changing, hasPendingClear, changeFromSkip, dimOut;
     DateTime changeStart, pendingClearAt;
     string titleAtChange;
 
@@ -1006,7 +1008,7 @@ class BarWidget : Form
         var art = Art;
         if (cover != null)
         {
-            if (changing || coverPending)
+            if (changing || coverPending || dimOut)
             {
                 // Portada atenuada mientras cambia de canción
                 using var ia = new System.Drawing.Imaging.ImageAttributes();
@@ -1016,8 +1018,8 @@ class BarWidget : Form
             else g.DrawImage(cover, art);
         }
         else DrawLogo(g, art);
-        var titleCol = changing || coverPending ? Color.FromArgb(120, 120, 120) : Color.White;
-        var artistCol = changing || coverPending ? Color.FromArgb(90, 90, 90) : Color.FromArgb(170, 170, 170);
+        var titleCol = changing || coverPending || dimOut ? Color.FromArgb(120, 120, 120) : Color.White;
+        var artistCol = changing || coverPending || dimOut ? Color.FromArgb(90, 90, 90) : Color.FromArgb(170, 170, 170);
 
         // Texto: en vertical no cabe, se muestra al pasar el ratón
         var t = string.IsNullOrEmpty(artist) ? title : title + " — " + artist;
