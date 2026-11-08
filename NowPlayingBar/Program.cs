@@ -540,8 +540,13 @@ class BarWidget : Form
         if (coverPending)
         {
             var w = (DateTime.Now - coverPendingAt).TotalSeconds;
-            if (w > 2) { coverPending = false; var old = cover; cover = null; old?.Dispose(); Invalidate(); } // la canción no tiene portada
-            else if (!coverRetrying && w > 0.4) _ = RetryCover();
+            if (w > 1)
+            {
+                // Tardó demasiado (o no tiene portada): mostrar la canción nueva con el icono del reproductor
+                coverPending = false; title = pendTitle; artist = pendArtist;
+                var old = cover; cover = null; old?.Dispose(); Invalidate();
+            }
+            else if (!coverRetrying && w > 0.3) _ = RetryCover();
         }
         if (changing && !hasPendingClear && (DateTime.Now - changeStart).TotalSeconds > 2.5)
         {
@@ -550,7 +555,7 @@ class BarWidget : Form
         }
     }
 
-    bool coverPending, coverRetrying; DateTime coverPendingAt;
+    bool coverPending, coverRetrying; DateTime coverPendingAt; string pendTitle = "", pendArtist = "";
     async Task RetryCover()
     {
         coverRetrying = true;
@@ -590,17 +595,17 @@ class BarWidget : Form
             if (changing && changeFromSkip && p.Title == titleAtChange && (DateTime.Now - changeStart).TotalSeconds < 2.5) { img?.Dispose(); return; }
             changing = false;
             bool newSong = p.Title != title || (p.Artist ?? "") != artist;
-            title = p.Title;
-            artist = p.Artist ?? "";
             if (img == null && cover != null && (newSong || coverPending))
             {
                 // La portada nueva suele llegar un instante después que el título:
-                // mantener la anterior atenuada en vez de mostrar el icono un frame
+                // seguir mostrando la canción anterior atenuada (texto y portada) hasta 1 s
+                pendTitle = p.Title; pendArtist = p.Artist ?? "";
                 if (!coverPending) { coverPending = true; coverPendingAt = DateTime.Now; }
             }
             else
             {
                 coverPending = false;
+                title = p.Title; artist = p.Artist ?? "";
                 var old = cover; cover = img; old?.Dispose(); // liberar la portada anterior
             }
         }
@@ -625,8 +630,8 @@ class BarWidget : Form
             else g.DrawImage(cover, art);
         }
         else DrawLogo(g, art);
-        var titleCol = changing ? Color.FromArgb(120, 120, 120) : Color.White;
-        var artistCol = changing ? Color.FromArgb(90, 90, 90) : Color.FromArgb(170, 170, 170);
+        var titleCol = changing || coverPending ? Color.FromArgb(120, 120, 120) : Color.White;
+        var artistCol = changing || coverPending ? Color.FromArgb(90, 90, 90) : Color.FromArgb(170, 170, 170);
 
         // Texto: en vertical no cabe, se muestra al pasar el ratón
         var t = string.IsNullOrEmpty(artist) ? title : title + " — " + artist;
