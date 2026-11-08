@@ -60,9 +60,13 @@ class BarWidget : Form
     // Copia el color de la barra tomando un píxel justo encima del widget
     void MatchBarColor()
     {
-        if (taskbar == IntPtr.Zero || !GetWindowRect(taskbar, out var r) || lastPos.Y < 3) return;
+        if (taskbar == IntPtr.Zero || !GetWindowRect(taskbar, out var r)) return;
+        // Horizontal: píxel encima del widget. Vertical: píxel a su izquierda.
+        int px, py;
+        if (vertical) { if (lastPos.X < 3) return; px = r.L + lastPos.X / 2; py = r.T + lastPos.Y + H / 2; }
+        else { if (lastPos.Y < 3) return; px = r.L + lastPos.X + W / 2; py = r.T + lastPos.Y / 2; }
         var dc = GetDC(IntPtr.Zero);
-        uint c = GetPixel(dc, r.L + lastPos.X + W / 2, r.T + lastPos.Y / 2);
+        uint c = GetPixel(dc, px, py);
         ReleaseDC(IntPtr.Zero, dc);
         if (c == 0xFFFFFFFF) return;
         var col = Color.FromArgb((int)(c & 0xFF), (int)((c >> 8) & 0xFF), (int)((c >> 16) & 0xFF));
@@ -152,8 +156,17 @@ class BarWidget : Form
     void MoveTo(int idx) { screen = idx; Embed(); Save(); }
     bool dragging, dragMoved; int dragStartX, dragStartLeft;
 
-    const int W = 300, H = 40;
-    Rectangle Btn(int i) => new(W - 96 + i * 30, (H - 28) / 2, 28, 28);
+    // Barra horizontal: 300x40 con portada, texto y botones en fila.
+    // Barra vertical: tan ancho como la barra, con portada arriba y botones apilados (el texto va en un tooltip).
+    bool vertical;
+    int vw = 48;
+    int W => vertical ? vw : 300;
+    int H => vertical ? vw + 3 * 30 + 4 : 40;
+    Rectangle Art => vertical ? new(4, 4, vw - 8, vw - 8) : new(6, 5, 30, 30);
+    Rectangle Btn(int i) => vertical ? new((vw - 28) / 2, vw + i * 30, 28, 28) : new(W - 96 + i * 30, (H - 28) / 2, 28, 28);
+    int Axis(Point p) => vertical ? p.Y : p.X; // eje sobre el que se arrastra
+    readonly ToolTip tip = new() { InitialDelay = 300 };
+    string tipText = "";
 
     protected override CreateParams CreateParams
     {
@@ -268,8 +281,21 @@ class BarWidget : Form
     {
         if (taskbar == IntPtr.Zero || !GetWindowRect(taskbar, out var r)) return;
         int barW = r.R - r.L, barH = r.B - r.T;
-        posX = Math.Clamp(posX, 0, Math.Max(0, barW - W));
-        var target = new Rectangle(posX, Math.Max(0, (barH - H) / 2), W, H); // coordenadas dentro de la barra
+        bool v = barH > barW;
+        int nvw = Math.Clamp(barW - 8, 36, 96);
+        if (v != vertical || (v && nvw != vw)) { vertical = v; vw = nvw; lastPos = Rectangle.Empty; Invalidate(); }
+        // posX es el desplazamiento a lo largo de la barra (horizontal: X, vertical: Y)
+        Rectangle target;
+        if (vertical)
+        {
+            posX = Math.Clamp(posX, 0, Math.Max(0, barH - H));
+            target = new Rectangle(Math.Max(0, (barW - W) / 2), posX, W, H);
+        }
+        else
+        {
+            posX = Math.Clamp(posX, 0, Math.Max(0, barW - W));
+            target = new Rectangle(posX, Math.Max(0, (barH - H) / 2), W, H); // coordenadas dentro de la barra
+        }
         if (target != lastPos)
         {
             SetWindowPos(Handle, IntPtr.Zero, target.X, target.Y, W, H, 0x0010 | 0x0040); // NOACTIVATE, SHOW, arriba entre hermanas
@@ -433,15 +459,21 @@ class BarWidget : Form
     {
         var g = e.Graphics;
         g.SmoothingMode = SmoothingMode.AntiAlias;
-        var art = new Rectangle(6, 5, H - 10, H - 10);
+        var art = Art;
         if (cover != null) g.DrawImage(cover, art);
         else DrawLogo(g, art);
 
-        int tx = art.Right + 8, tw = W - 96 - tx - 4;
-        var fmt = TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix | TextFormatFlags.SingleLine;
-        using (var bold = new Font(Font, FontStyle.Bold))
-            TextRenderer.DrawText(g, title, bold, new Rectangle(tx, 3, tw, 18), Color.White, fmt);
-        TextRenderer.DrawText(g, artist, Font, new Rectangle(tx, 20, tw, 17), Color.FromArgb(170, 170, 170), fmt);
+        // Texto: en vertical no cabe, se muestra al pasar el ratón
+        var t = string.IsNullOrEmpty(artist) ? title : title + " — " + artist;
+        if (t != tipText) { tipText = t; tip.SetToolTip(this, vertical ? t : null); }
+        if (!vertical)
+        {
+            int tx = art.Right + 8, tw = W - 96 - tx - 4;
+            var fmt = TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix | TextFormatFlags.SingleLine;
+            using (var bold = new Font(Font, FontStyle.Bold))
+                TextRenderer.DrawText(g, title, bold, new Rectangle(tx, 3, tw, 18), Color.White, fmt);
+            TextRenderer.DrawText(g, artist, Font, new Rectangle(tx, 20, tw, 17), Color.FromArgb(170, 170, 170), fmt);
+        }
 
         for (int i = 0; i < 3; i++)
         {
@@ -472,15 +504,17 @@ class BarWidget : Form
     {
         if (dragging)
         {
-            int dx = Cursor.Position.X - dragStartX;
+            int dx = Axis(Cursor.Position) - dragStartX;
             if (Math.Abs(dx) > 3) dragMoved = true;
             // Arrastrar hasta la barra de otra pantalla: cambiar de monitor
             var cp = Cursor.Position; var bars = Taskbars();
             for (int i = 0; i < bars.Count && !Program.AllScreens; i++)
                 if (bars[i] != taskbar && GetWindowRect(bars[i], out var br) && cp.X >= br.L && cp.X < br.R && cp.Y >= br.T - 40 && cp.Y < br.B)
                 {
-                    screen = i; Embed(); posX = cp.X - br.L - W / 2; lastPos = Rectangle.Empty; Place();
-                    dragStartX = cp.X; dragStartLeft = posX; Capture = true; return;
+                    screen = i; Embed();
+                    posX = (br.B - br.T > br.R - br.L) ? cp.Y - br.T - H / 2 : cp.X - br.L - W / 2;
+                    lastPos = Rectangle.Empty; Place();
+                    dragStartX = Axis(cp); dragStartLeft = posX; Capture = true; return;
                 }
             if (dragMoved) { posX = dragStartLeft + dx; Place(); }
             return;
@@ -493,7 +527,7 @@ class BarWidget : Form
     protected override void OnMouseDown(MouseEventArgs e)
     {
         if (e.Button != MouseButtons.Left) return;
-        if (HitBtn(e.Location) < 0) { dragging = true; dragMoved = false; dragStartX = Cursor.Position.X; dragStartLeft = posX; Capture = true; }
+        if (HitBtn(e.Location) < 0) { dragging = true; dragMoved = false; dragStartX = Axis(Cursor.Position); dragStartLeft = posX; Capture = true; }
     }
 
     protected override async void OnMouseUp(MouseEventArgs e)
