@@ -731,6 +731,27 @@ class BarWidget : Form
     [DllImport("user32.dll")] static extern bool IsWindowVisible(IntPtr h);
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int GetWindowText(IntPtr h, System.Text.StringBuilder s, int n);
 
+    // Apps que ya mandaron una canción con álbum: nunca se tratan como notas de voz
+    static readonly System.Collections.Generic.HashSet<string> trustedApps = new();
+    static readonly System.Text.RegularExpressions.Regex GenericAudio = new(
+        @"^(audio|voice( message| note)?|mensaje de voz|nota de voz|sprachnachricht|mensagem de voz|голосовое( сообщение)?|ptt[-_ ].*|.*\.(opus|ogg|m4a|aac|amr|wav|mp3))$",
+        System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+    // Puntuación de "audio pelado" (nota de voz, aviso, sonido de una app): 4 o más puntos = no es música
+    static bool LooksLikeVoiceNote(GlobalSystemMediaTransportControlsSession s, GlobalSystemMediaTransportControlsSessionMediaProperties p, string id)
+    {
+        string title = (p.Title ?? "").Trim(), artist = (p.Artist ?? "").Trim(), album = (p.AlbumTitle ?? "").Trim();
+        if (album.Length > 0) { trustedApps.Add(id); return false; }
+        if (trustedApps.Contains(id)) return false;
+        int score = 0;
+        if (artist.Length == 0) score += 2;
+        if (title.Length == 0 || GenericAudio.IsMatch(title)) score += 2;
+        try { var tl = s.GetTimelineProperties(); var d = (tl.EndTime - tl.StartTime).TotalSeconds; if (d > 0 && d < 90) score += 2; } catch { }
+        if (p.Thumbnail == null) score += 1;
+        try { var c = s.GetPlaybackInfo()?.Controls; if (c != null && !c.IsNextEnabled && !c.IsPreviousEnabled) score += 1; } catch { }
+        return score >= 4;
+    }
+
     async void ClassifyAsync(GlobalSystemMediaTransportControlsSession s, string id)
     {
         try
@@ -741,7 +762,7 @@ class BarWidget : Form
             bool music;
             if (p.PlaybackType == Windows.Media.MediaPlaybackType.Video) music = false;
             else if (IsBrowser(id)) music = await BrowserIsMusic(s, p);
-            else music = !VideoApps.Any(v => l.Contains(v));
+            else music = !VideoApps.Any(v => l.Contains(v)) && !LooksLikeVoiceNote(s, p, id);
             // Navegador con varias pestañas: si hace poco sonaba música, un video de paso no lo saca del modo "Solo música"
             if (music) lastMusicAt[id] = DateTime.Now;
             else if (IsBrowser(id) && lastMusicAt.TryGetValue(id, out var lm) && (DateTime.Now - lm).TotalSeconds < 15) music = true;
