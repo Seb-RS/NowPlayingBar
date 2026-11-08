@@ -49,6 +49,16 @@ static class Program
     }
 }
 
+// Menús con WS_EX_TOOLWINDOW: sin esto, al abrir el menú aparece el icono de la app en la barra de tareas
+class ToolMenu : ContextMenuStrip
+{
+    protected override CreateParams CreateParams { get { var cp = base.CreateParams; cp.ExStyle |= 0x80; return cp; } }
+}
+class ToolDropDown : ToolStripDropDownMenu
+{
+    protected override CreateParams CreateParams { get { var cp = base.CreateParams; cp.ExStyle |= 0x80; return cp; } }
+}
+
 class BarWidget : Form
 {
     [DllImport("user32.dll")] static extern IntPtr FindWindow(string cls, string name);
@@ -199,8 +209,8 @@ class BarWidget : Form
         posX = LoadCfg().posX;
         screen = Math.Max(0, screenIndex);
 
-        var menu = new ContextMenuStrip();
-        var scr = new ToolStripMenuItem("Pantalla");
+        var menu = new ToolMenu();
+        var scr = new ToolStripMenuItem("Pantalla") { DropDown = new ToolDropDown() };
         scr.DropDownItems.Add("-");
         scr.DropDownOpening += (_, _) =>
         {
@@ -229,7 +239,7 @@ class BarWidget : Form
         menu.Items.Add(scr);
 
         // Fuente: automático (prioridad) o fijar una app concreta
-        var src = new ToolStripMenuItem("Fuente");
+        var src = new ToolStripMenuItem("Fuente") { DropDown = new ToolDropDown() };
         src.DropDownItems.Add("-");
         src.DropDownOpening += (_, _) =>
         {
