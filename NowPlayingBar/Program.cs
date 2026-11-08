@@ -402,7 +402,7 @@ class BarWidget : Form
     Rectangle Btn(int i) => vertical ? new((vw - 28) / 2, vw + TextH + i * 30, 28, 28) : new(W - 96 + i * 30, (H - 28) / 2, 28, 28);
     // Texto en marquesina para la barra vertical
     readonly Timer marquee = new() { Interval = 40 };
-    int scroll;
+    int scroll, progTick;
     string lastTitle;
     int Axis(Point p) => vertical ? p.Y : p.X; // eje sobre el que se arrastra
     readonly ToolTip tip = new() { InitialDelay = 300 };
@@ -527,7 +527,7 @@ class BarWidget : Form
             if (owner && Program.AllScreens && !relaunching) { int n = Taskbars().Count; if (n > 0 && n != Program.Instances) { relaunching = true; Program.Relaunch(); } }
         };
         watch.Start();
-        marquee.Tick += (_, _) => { ChangeTick(); if (vertical) { scroll++; Invalidate(TextArea); } };
+        marquee.Tick += (_, _) => { ChangeTick(); if (++progTick % 12 == 0 && playing) Invalidate(ProgressArea); if (vertical) { scroll++; Invalidate(TextArea); } };
         marquee.Start();
         _ = InitAsync();
     }
@@ -1066,12 +1066,37 @@ class BarWidget : Form
             TextRenderer.DrawText(g, artist, Font, new Rectangle(tx, 20, tw, 17), artistCol, fmt);
         }
 
+        DrawProgress(g);
+
         for (int i = 0; i < 3; i++)
         {
             var r = Btn(i);
             if (hover == i) using (var hb = new SolidBrush(Color.FromArgb(60, 255, 255, 255))) g.FillEllipse(hb, r);
             DrawIcon(g, i, r);
         }
+    }
+
+    // Línea de progreso bajo el texto (horizontal) o bajo la marquesina (vertical), extrapolada entre actualizaciones
+    Rectangle ProgressArea => vertical ? new(6, vw + TextH - 4, vw - 12, 2) : new(Art.Right + 8, H - 4, W - 96 - Art.Right - 12, 2);
+    void DrawProgress(Graphics g)
+    {
+        if (session == null || title == L.T("nothing")) return;
+        double frac;
+        try
+        {
+            var tl = session.GetTimelineProperties();
+            double dur = (tl.EndTime - tl.StartTime).TotalSeconds;
+            if (dur <= 1) return;
+            double pos = (tl.Position - tl.StartTime).TotalSeconds;
+            if (playing && tl.LastUpdatedTime.Year > 2000) pos += (DateTimeOffset.Now - tl.LastUpdatedTime).TotalSeconds;
+            frac = Math.Clamp(pos / dur, 0, 1);
+        }
+        catch { return; }
+        var r = ProgressArea;
+        bool dim = changing || coverPending || dimOut;
+        using (var bg = new SolidBrush(Color.FromArgb(50, 255, 255, 255))) g.FillRectangle(bg, r);
+        using var fg = new SolidBrush(dim ? Color.FromArgb(110, 110, 110) : Color.FromArgb(230, 255, 255, 255));
+        g.FillRectangle(fg, r.X, r.Y, (float)(r.Width * frac), r.Height);
     }
 
     // Dibuja el texto centrado si cabe; si no, lo desplaza en bucle con una pausa al inicio
