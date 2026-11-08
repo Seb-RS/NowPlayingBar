@@ -38,9 +38,15 @@ Add-AppxPackage -Register out\AppxManifest.xml
 ```
 
 
-## Descarga
+## Descarga e instalación
 
-Los binarios compilados están en [Releases](https://github.com/Seb-RS/NowPlayingBar/releases). Los compila GitHub Actions directamente desde este código.
+1. Ve a [Releases](https://github.com/Seb-RS/NowPlayingBar/releases) y descarga **`NowPlayingBar-Setup-x.y.z.exe`**.
+2. Ábrelo y sigue los pasos. No necesita permisos de administrador ni instalar .NET.
+3. Si Windows muestra "Windows protegió su PC", pulsa **Más información → Ejecutar de todas formas**. Aparece porque el instalador todavía no está firmado.
+
+Para desinstalarlo: Configuración → Aplicaciones → NowPlayingBar → Desinstalar.
+
+Los binarios los compila GitHub Actions directamente desde este código.
 
 ## Code signing policy
 

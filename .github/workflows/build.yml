@@ -21,10 +21,20 @@ jobs:
           dotnet-version: '9.0.x'
 
       - name: Publicar NowPlayingBar
-        run: dotnet publish NowPlayingBar/NowPlayingBar.csproj -c Release -o dist/NowPlayingBar
+        # Autocontenido: no requiere instalar .NET en el PC del usuario
+        run: dotnet publish NowPlayingBar/NowPlayingBar.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o dist/NowPlayingBar
 
       - name: Publicar NowPlayingWidget
         run: dotnet publish NowPlayingWidget/NowPlayingWidget.csproj -c Release -r win-x64 -o dist/NowPlayingWidget
+
+      - name: Crear instalador
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) { choco install innosetup -y --no-progress }
+          $v = if ($env:GITHUB_REF -like 'refs/tags/v*') { $env:GITHUB_REF_NAME.TrimStart('v') } else { '0.0.0' }
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DAppVersion=$v" installer/NowPlayingBar.iss
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          Copy-Item dist/NowPlayingBar-Setup-*.exe .
 
       - name: Comprimir
         shell: pwsh
@@ -38,6 +48,7 @@ jobs:
         with:
           name: NowPlayingBar-unsigned
           path: |
+            NowPlayingBar-Setup-*.exe
             NowPlayingBar.zip
             NowPlayingWidget.zip
 
@@ -60,4 +71,5 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            ${{ vars.SIGNPATH_ORGANIZATION_ID != '' && 'signed/*.zip' || '*.zip' }}
+            ${{ vars.SIGNPATH_ORGANIZATION_ID != '' && 'signed/*' || '*.zip' }}
+            ${{ vars.SIGNPATH_ORGANIZATION_ID == '' && 'NowPlayingBar-Setup-*.exe' || '' }}
