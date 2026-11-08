@@ -445,17 +445,52 @@ class BarWidget : Form
         return n.Length > 0 ? char.ToUpper(n[0]) + n[1..] : id;
     }
 
+    // ---- ¿Música o video? ----
+    // Apps de música conocidas: siempre música. Navegadores: música solo si la página informa un álbum
+    // (YouTube Music, Music web, Deezer…); un video de YouTube o una película no lo tiene.
+    static readonly string[] Browsers = { "chrome", "msedge", "brave", "firefox", "opera", "vivaldi", "arc", "zen", "floorp", "librewolf", "thorium", "yandex" };
+    static readonly string[] VideoApps = { "vlc", "mpc-hc", "mpc-be", "potplayer", "mpv", "netflix", "disney", "primevideo", "stremio", "kodi", "plex", "jellyfin", "video.ui", "zunevideo", "media player" };
+    readonly System.Collections.Generic.Dictionary<string, bool> musicInfo = new(); // id -> la página/canción actual es música
+
+    static bool IsBrowser(string id) { var l = (id ?? "").ToLowerInvariant(); return Browsers.Any(b => l.Contains(b)); }
+
+    bool IsMusic(GlobalSystemMediaTransportControlsSession s)
+    {
+        string id; try { id = s.SourceAppUserModelId ?? ""; } catch { return false; }
+        if (musicInfo.TryGetValue(id, out var m)) return m;
+        var l = id.ToLowerInvariant();
+        return !IsBrowser(id) && !VideoApps.Any(v => l.Contains(v));
+    }
+
+    async void ClassifyAsync(GlobalSystemMediaTransportControlsSession s, string id)
+    {
+        try
+        {
+            var p = await s.TryGetMediaPropertiesAsync();
+            var l = id.ToLowerInvariant();
+            bool music;
+            if (p.PlaybackType == Windows.Media.MediaPlaybackType.Video) music = false;
+            else if (IsBrowser(id)) music = !string.IsNullOrWhiteSpace(p.AlbumTitle);
+            else music = !VideoApps.Any(v => l.Contains(v));
+            bool changed = !musicInfo.TryGetValue(id, out var old) || old != music;
+            musicInfo[id] = music;
+            if (changed) PickSession();
+        }
+        catch { }
+    }
+
     void HookAll(System.Collections.Generic.IReadOnlyList<GlobalSystemMediaTransportControlsSession> all)
     {
         // Olvidar apps que ya se cerraron, para volver a engancharlas si se abren de nuevo
         var ids = all.Select(x => x.SourceAppUserModelId).ToHashSet();
-        foreach (var gone in hooked.Keys.Where(k => !ids.Contains(k)).ToList()) { hooked.Remove(gone); playStart.Remove(gone); }
+        foreach (var gone in hooked.Keys.Where(k => !ids.Contains(k)).ToList()) { hooked.Remove(gone); playStart.Remove(gone); musicInfo.Remove(gone); }
         foreach (var s in all)
         {
             var id = s.SourceAppUserModelId;
             if (IsPlaying(s) && !playStart.ContainsKey(id)) playStart[id] = DateTime.Now;
             if (hooked.ContainsKey(id)) continue;
             hooked[id] = s;
+            ClassifyAsync(s, id);
             s.PlaybackInfoChanged += (x, _) =>
             {
                 bool p = IsPlaying(x);
@@ -472,7 +507,7 @@ class BarWidget : Form
             };
             s.MediaPropertiesChanged += (x, _) =>
             {
-                BeginInvoke(() => { try { if (session != null && id == session.SourceAppUserModelId) { var t = UpdateMedia(); } } catch { } });
+                BeginInvoke(() => { try { ClassifyAsync(x, id); if (session != null && id == session.SourceAppUserModelId) { var t = UpdateMedia(); } } catch { } });
             };
         }
     }
@@ -488,6 +523,8 @@ class BarWidget : Form
         if (s == null)
         {
             var playingNow = all.Where(IsPlaying).ToList();
+            // La música tiene prioridad: si suena música, los videos (películas en el navegador, etc.) no la tapan
+            if (playingNow.Any(IsMusic)) playingNow = playingNow.Where(IsMusic).ToList();
             s = playingNow.FirstOrDefault(x => session != null && x.SourceAppUserModelId == session.SourceAppUserModelId)
                 ?? playingNow.OrderByDescending(x => playStart.TryGetValue(x.SourceAppUserModelId, out var t) ? t : DateTime.MinValue).FirstOrDefault()
                 ?? all.FirstOrDefault(x => session != null && x.SourceAppUserModelId == session.SourceAppUserModelId)
@@ -543,7 +580,7 @@ class BarWidget : Form
             if (w > 1)
             {
                 // Tardó demasiado (o no tiene portada): mostrar la canción nueva con el icono del reproductor
-                coverPending = false; title = pendTitle; artist = pendArtist;
+                coverPending = false; title = pendTitle; artist = pendArtist; coverHash = null;
                 var old = cover; cover = null; old?.Dispose(); Invalidate();
             }
             else if (!coverRetrying && w > 0.3) _ = RetryCover();
@@ -555,7 +592,7 @@ class BarWidget : Form
         }
     }
 
-    bool coverPending, coverRetrying; DateTime coverPendingAt; string pendTitle = "", pendArtist = "";
+    bool coverPending, coverRetrying; DateTime coverPendingAt; string pendTitle = "", pendArtist = "", coverHash;
     async Task RetryCover()
     {
         coverRetrying = true;
@@ -576,12 +613,17 @@ class BarWidget : Form
         try
         {
             var p = await s.TryGetMediaPropertiesAsync();
-            Image img = null;
+            Image img = null; string hash = null;
             if (p.Thumbnail != null)
             {
-                using var st = (await p.Thumbnail.OpenReadAsync()).AsStreamForRead();
-                var ms = new MemoryStream(); await st.CopyToAsync(ms); ms.Position = 0;
-                img = Image.FromStream(ms);
+                try
+                {
+                    using var st = (await p.Thumbnail.OpenReadAsync()).AsStreamForRead();
+                    var ms = new MemoryStream(); await st.CopyToAsync(ms);
+                    hash = Convert.ToBase64String(System.Security.Cryptography.SHA1.HashData(ms.ToArray()));
+                    ms.Position = 0; img = Image.FromStream(ms);
+                }
+                catch { img = null; hash = null; } // portada aún no disponible
             }
             // Si mientras cargaba se cambió de reproductor, descartar este resultado
             if (session == null || s.SourceAppUserModelId != session.SourceAppUserModelId) { img?.Dispose(); return; }
@@ -595,6 +637,8 @@ class BarWidget : Form
             if (changing && changeFromSkip && p.Title == titleAtChange && (DateTime.Now - changeStart).TotalSeconds < 2.5) { img?.Dispose(); return; }
             changing = false;
             bool newSong = p.Title != title || (p.Artist ?? "") != artist;
+            // Algunos reproductores (Music) mandan el título nuevo con la portada anterior: tratarla como no cargada
+            if (img != null && (newSong || coverPending) && hash != null && hash == coverHash) { img.Dispose(); img = null; }
             if (img == null && cover != null && (newSong || coverPending))
             {
                 // La portada nueva suele llegar un instante después que el título:
@@ -605,7 +649,7 @@ class BarWidget : Form
             else
             {
                 coverPending = false;
-                title = p.Title; artist = p.Artist ?? "";
+                title = p.Title; artist = p.Artist ?? ""; coverHash = img == null ? null : hash;
                 var old = cover; cover = img; old?.Dispose(); // liberar la portada anterior
             }
         }
