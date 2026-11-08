@@ -87,7 +87,10 @@ static class L
         ["reset"]    = new[] { "Restablecer posición", "Reset position", "Position zurücksetzen", "Redefinir posição", "Сбросить положение" },
         ["lang"]     = new[] { "Idioma", "Language", "Sprache", "Idioma", "Язык" },
         ["system"]   = new[] { "Idioma de Windows", "Windows language", "Windows-Sprache", "Idioma do Windows", "Язык Windows" },
-        ["exit"]     = new[] { "Salir", "Exit", "Beenden", "Sair", "Выход" },
+        ["show"]     = new[] { "Mostrar", "Show", "Anzeigen", "Mostrar", "Показывать" },
+        ["onlymusic"]= new[] { "Solo música", "Music only", "Nur Musik", "Só música", "Только музыку" },
+        ["everything"]=new[] { "Todo (música y videos)", "Everything (music and videos)", "Alles (Musik und Videos)", "Tudo (música e vídeos)", "Всё (музыку и видео)" },
+        ["exit"]     =new[] { "Salir", "Exit", "Beenden", "Sair", "Выход" },
         ["unknown"]  = new[] { "Desconocido", "Unknown", "Unbekannt", "Desconhecido", "Неизвестно" },
     };
     public static string T(string key) => T_[key][Array.FindIndex(Langs, l => l.code == Code)];
@@ -485,6 +488,15 @@ class BarWidget : Form
             }
         };
         menu.Items.Add(src);
+        // Mostrar: todo o solo música
+        var show = new ToolStripMenuItem(L.T("show")) { DropDown = new ToolDropDown() }.Icon("");
+        var showAll = new ToolStripMenuItem(L.T("everything"));
+        var showMusic = new ToolStripMenuItem(L.T("onlymusic"));
+        showAll.Click += (_, _) => { SetOnlyMusic(false); PickSession(); };
+        showMusic.Click += (_, _) => { SetOnlyMusic(true); PickSession(); };
+        show.DropDownItems.Add(showAll); show.DropDownItems.Add(showMusic);
+        show.DropDownOpening += (_, _) => { showAll.Checked = !OnlyMusic; showMusic.Checked = OnlyMusic; };
+        menu.Items.Add(show);
         var autoItem = new ToolStripMenuItem(L.T("startup")) { Checked = Autostart.Enabled, Tag = Fluent.Toggle }.Icon("");
         autoItem.Click += (_, _) => { Autostart.Set(!Autostart.Enabled); autoItem.Checked = Autostart.Enabled; };
         menu.Opening += (_, _) => autoItem.Checked = Autostart.Enabled;
@@ -610,7 +622,13 @@ class BarWidget : Form
     // 3. Si la actual sigue reproduciendo, no se cambia (evita saltos).
     // 4. Entre varias reproduciendo, la que empezó a sonar más recientemente.
     // 5. Si nada suena, la que Windows marca como actual.
-    static readonly string SourceCfg = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "NowPlayingBar.source.txt");
+    // Mostrar: "Todo" (por defecto) o "Solo música"
+    static readonly string FilterCfg = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "NowPlayingBar.filter.txt");
+    static bool OnlyMusic = ReadFilter();
+    static bool ReadFilter() { try { return File.ReadAllText(FilterCfg).Trim() == "music"; } catch { return false; } }
+    static void SetOnlyMusic(bool on) { OnlyMusic = on; try { File.WriteAllText(FilterCfg, on ? "music" : "all"); } catch { } }
+
+    static readonly string SourceCfg =Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "NowPlayingBar.source.txt");
     static string pinned = LoadPinned();
     static string LoadPinned() { try { var s = File.ReadAllText(SourceCfg).Trim(); return s.Length > 0 ? s : null; } catch { return null; } }
     static void SetPinned(string id) { pinned = id; try { File.WriteAllText(SourceCfg, id ?? ""); } catch { } }
@@ -661,7 +679,8 @@ class BarWidget : Form
             var l = id.ToLowerInvariant();
             bool music;
             if (p.PlaybackType == Windows.Media.MediaPlaybackType.Video) music = false;
-            else if (IsBrowser(id)) music = !string.IsNullOrWhiteSpace(p.AlbumTitle);
+            // Navegador: es canción si trae artista (o álbum) además del título; una película o un video suelto solo trae título
+            else if (IsBrowser(id)) music = !string.IsNullOrWhiteSpace(p.Title) && (!string.IsNullOrWhiteSpace(p.Artist) || !string.IsNullOrWhiteSpace(p.AlbumTitle));
             else music = !VideoApps.Any(v => l.Contains(v));
             bool changed = !musicInfo.TryGetValue(id, out var old) || old != music;
             musicInfo[id] = music;
@@ -713,14 +732,18 @@ class BarWidget : Form
         if (pinned != null) s = all.FirstOrDefault(x => x.SourceAppUserModelId == pinned);
         if (s == null)
         {
-            var playingNow = all.Where(IsPlaying).ToList();
+            // Modo "Solo música": los videos y películas se ignoran por completo
+            var cands = OnlyMusic ? all.Where(IsMusic).ToList() : all.ToList();
+            var cur = mgr.GetCurrentSession();
+            if (cur != null && OnlyMusic && !IsMusic(cur)) cur = null;
+            var playingNow = cands.Where(IsPlaying).ToList();
             // La música tiene prioridad: si suena música, los videos (películas en el navegador, etc.) no la tapan
             if (playingNow.Any(IsMusic)) playingNow = playingNow.Where(IsMusic).ToList();
             s = playingNow.FirstOrDefault(x => session != null && x.SourceAppUserModelId == session.SourceAppUserModelId)
                 ?? playingNow.OrderByDescending(x => playStart.TryGetValue(x.SourceAppUserModelId, out var t) ? t : DateTime.MinValue).FirstOrDefault()
-                ?? all.FirstOrDefault(x => session != null && x.SourceAppUserModelId == session.SourceAppUserModelId)
-                ?? mgr.GetCurrentSession()
-                ?? all.FirstOrDefault();
+                ?? cands.FirstOrDefault(x => session != null && x.SourceAppUserModelId == session.SourceAppUserModelId)
+                ?? cur
+                ?? cands.FirstOrDefault();
         }
 
         if (s == null && session != null && !hasPendingClear)
