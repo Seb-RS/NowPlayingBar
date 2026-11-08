@@ -179,7 +179,7 @@ static class Fluent
         m.ItemAdded += (_, e) =>
         {
             if (e.Item is ToolStripSeparator) return;
-            e.Item.Padding = new Padding(0, 6, 18, 6); // margen derecho: el texto empieza en TextX, más a la derecha que el de WinForms
+            e.Item.Padding = new Padding(0, 3, 18, 3); // margen derecho: el texto empieza en TextX, más a la derecha que el de WinForms
             e.Item.ForeColor = Text;
             if (e.Item is not ToolStripMenuItem mi) return;
             Hook(mi);
