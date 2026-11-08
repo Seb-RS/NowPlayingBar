@@ -305,33 +305,53 @@ static class Fluent
     // Ventanita con forma de triángulo entre menú y submenú, mismo fondo y borde que el menú
     class Arrow : Form
     {
-        static Arrow inst; bool right; ToolStripDropDown owner;
-        const int AW = Gap + 2, AH = 18;
-        Arrow() { FormBorderStyle = FormBorderStyle.None; ShowInTaskbar = false; BackColor = Color.Magenta; TransparencyKey = Color.Magenta; StartPosition = FormStartPosition.Manual; Size = new(AW, AH); }
+        static Arrow inst; ToolStripDropDown owner;
+        const int AW = Gap + 2, AH = 20;
+        Arrow() { FormBorderStyle = FormBorderStyle.None; ShowInTaskbar = false; StartPosition = FormStartPosition.Manual; Size = new(AW, AH); }
         protected override bool ShowWithoutActivation => true;
-        protected override CreateParams CreateParams { get { var cp = base.CreateParams; cp.ExStyle |= 0x80 | 0x08000000 | 0x8 | 0x20; return cp; } } // TOOLWINDOW | NOACTIVATE | TOPMOST | TRANSPARENT (no roba foco ni clics: si no, el menú se cierra)
+        // LAYERED | TOOLWINDOW | NOACTIVATE | TOPMOST | TRANSPARENT: no roba foco ni clics (si no, el menú se cierra)
+        protected override CreateParams CreateParams { get { var cp = base.CreateParams; cp.ExStyle |= 0x80000 | 0x80 | 0x08000000 | 0x8 | 0x20; return cp; } }
         public static void ShowAt(bool right, int x, int cy, ToolStripDropDown owner)
         {
             inst ??= new Arrow();
-            inst.right = right; inst.owner = owner;
-            inst.Bounds = new Rectangle(x, cy - AH / 2, AW, AH);
+            inst.owner = owner;
             if (!inst.IsHandleCreated) inst.CreateHandle();
+            inst.Render(right, new Point(x, cy - AH / 2));
             ShowWindow(inst.Handle, 4); // SW_SHOWNOACTIVATE
-            SetWindowPos(inst.Handle, new IntPtr(-1), inst.Left, inst.Top, AW, AH, 0x0010 | 0x0040); // encima del submenú
-            inst.Invalidate();
+            SetWindowPos(inst.Handle, new IntPtr(-1), 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0010); // encima del submenú
         }
         public static void HideFor(ToolStripDropDown d) { if (inst != null && inst.owner == d && inst.IsHandleCreated) ShowWindow(inst.Handle, 0); }
-        [DllImport("user32.dll")] static extern bool ShowWindow(IntPtr h, int cmd);
-        protected override void OnPaint(PaintEventArgs e)
+
+        // Triángulo con alfa por píxel (bordes suaves); la base monta 2 px sobre el submenú y tapa su borde
+        void Render(bool right, Point pos)
         {
-            var g = e.Graphics; // sin antialias: el color clave (magenta) dejaría bordes rosados
-            // tip en el lado del menú padre; la base monta 2 px sobre el borde del submenú para taparlo
-            float tip = right ? 0 : AW - 1, b = right ? AW : -1;
-            var pts = new[] { new PointF(b, 0), new PointF(tip, AH / 2f), new PointF(b, AH) };
-            using (var br = new SolidBrush(Bg)) g.FillPolygon(br, pts);
-            using var pen = new Pen(Color.FromArgb(0x40, 0x40, 0x40));
-            g.DrawLine(pen, pts[0], pts[1]); g.DrawLine(pen, pts[1], pts[2]);
+            using var bmp = new Bitmap(AW, AH, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+            using (var g = Graphics.FromImage(bmp))
+            {
+                g.SmoothingMode = SmoothingMode.AntiAlias; g.PixelOffsetMode = PixelOffsetMode.HighQuality;
+                float tip = right ? 0.5f : AW - 0.5f, b = right ? AW + 1 : -1;
+                var pts = new[] { new PointF(b, 0.5f), new PointF(tip, AH / 2f), new PointF(b, AH - 0.5f) };
+                using (var br = new SolidBrush(Bg)) g.FillPolygon(br, pts);
+                using var pen = new Pen(Color.FromArgb(0x40, 0x40, 0x40), 1f);
+                g.DrawLines(pen, pts);
+            }
+            IntPtr screen = GetDC(IntPtr.Zero), mem = CreateCompatibleDC(screen), hb = bmp.GetHbitmap(Color.FromArgb(0)), old = SelectObject(mem, hb);
+            var size = new SZ { cx = AW, cy = AH }; var src = new PT(); var dst = new PT { x = pos.X, y = pos.Y };
+            var blend = new BLEND { op = 0, flags = 0, alpha = 255, fmt = 1 }; // AC_SRC_ALPHA
+            UpdateLayeredWindow(Handle, screen, ref dst, ref size, mem, ref src, 0, ref blend, 2); // ULW_ALPHA
+            SelectObject(mem, old); DeleteObject(hb); DeleteDC(mem); ReleaseDC(IntPtr.Zero, screen);
         }
+        struct PT { public int x, y; }
+        struct SZ { public int cx, cy; }
+        [StructLayout(LayoutKind.Sequential, Pack = 1)] struct BLEND { public byte op, flags, alpha, fmt; }
+        [DllImport("user32.dll")] static extern bool UpdateLayeredWindow(IntPtr h, IntPtr dst, ref PT pos, ref SZ size, IntPtr src, ref PT srcPos, int key, ref BLEND b, int flags);
+        [DllImport("user32.dll")] static extern IntPtr GetDC(IntPtr h);
+        [DllImport("user32.dll")] static extern int ReleaseDC(IntPtr h, IntPtr dc);
+        [DllImport("gdi32.dll")] static extern IntPtr CreateCompatibleDC(IntPtr dc);
+        [DllImport("gdi32.dll")] static extern bool DeleteDC(IntPtr dc);
+        [DllImport("gdi32.dll")] static extern IntPtr SelectObject(IntPtr dc, IntPtr o);
+        [DllImport("gdi32.dll")] static extern bool DeleteObject(IntPtr o);
+        [DllImport("user32.dll")] static extern bool ShowWindow(IntPtr h, int cmd);
     }
 }
 
