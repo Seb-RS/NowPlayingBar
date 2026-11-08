@@ -660,6 +660,7 @@ class BarWidget : Form
     static readonly string[] Browsers = { "chrome", "msedge", "brave", "firefox", "opera", "vivaldi", "arc", "zen", "floorp", "librewolf", "thorium", "yandex" };
     static readonly string[] VideoApps = { "vlc", "mpc-hc", "mpc-be", "potplayer", "mpv", "netflix", "disney", "primevideo", "stremio", "kodi", "plex", "jellyfin", "video.ui", "zunevideo", "media player" };
     readonly System.Collections.Generic.Dictionary<string, bool> musicInfo = new(); // id -> la página/canción actual es música
+    readonly System.Collections.Generic.Dictionary<string, DateTime> stopAt = new(); // id -> cuándo dejó de sonar (cambio de canción)
 
     static bool IsBrowser(string id) { var l = (id ?? "").ToLowerInvariant(); return Browsers.Any(b => l.Contains(b)); }
 
@@ -731,6 +732,7 @@ class BarWidget : Form
         try
         {
             var p = await s.TryGetMediaPropertiesAsync();
+            if (string.IsNullOrWhiteSpace(p?.Title) && musicInfo.ContainsKey(id)) return; // datos a medias durante el cambio de canción
             var l = id.ToLowerInvariant();
             bool music;
             if (p.PlaybackType == Windows.Media.MediaPlaybackType.Video) music = false;
@@ -762,7 +764,7 @@ class BarWidget : Form
                 {
                     try
                     {
-                        if (p) playStart[id] = DateTime.Now; else playStart.Remove(id);
+                        if (p) playStart[id] = DateTime.Now; else { playStart.Remove(id); stopAt[id] = DateTime.Now; }
                         if (session != null && id == session.SourceAppUserModelId) UpdatePlayback();
                         PickSession();
                     }
@@ -793,6 +795,9 @@ class BarWidget : Form
             var playingNow = cands.Where(IsPlaying).ToList();
             // La música tiene prioridad: si suena música, los videos (películas en el navegador, etc.) no la tapan
             if (playingNow.Any(IsMusic)) playingNow = playingNow.Where(IsMusic).ToList();
+            // Cambio de canción: la app actual se detiene un instante; no saltar a otra mientras tanto
+            var keep = session == null ? null : cands.FirstOrDefault(x => x.SourceAppUserModelId == session.SourceAppUserModelId);
+            if (keep != null && !IsPlaying(keep) && stopAt.TryGetValue(keep.SourceAppUserModelId, out var st) && (DateTime.Now - st).TotalSeconds < 3) { playingNow = new() { keep }; System.Threading.Tasks.Task.Delay(3100).ContinueWith(_ => BeginInvoke(PickSession)); }
             s = playingNow.FirstOrDefault(x => session != null && x.SourceAppUserModelId == session.SourceAppUserModelId)
                 ?? playingNow.OrderByDescending(x => playStart.TryGetValue(x.SourceAppUserModelId, out var t) ? t : DateTime.MinValue).FirstOrDefault()
                 ?? cands.FirstOrDefault(x => session != null && x.SourceAppUserModelId == session.SourceAppUserModelId)
