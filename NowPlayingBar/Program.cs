@@ -161,9 +161,15 @@ class BarWidget : Form
     bool vertical;
     int vw = 48;
     int W => vertical ? vw : 300;
-    int H => vertical ? vw + 3 * 30 + 4 : 40;
+    const int TextH = 30; // en vertical: dos líneas de texto con desplazamiento (título y artista)
+    int H => vertical ? vw + TextH + 3 * 30 + 4 : 40;
     Rectangle Art => vertical ? new(4, 4, vw - 8, vw - 8) : new(6, 5, 30, 30);
-    Rectangle Btn(int i) => vertical ? new((vw - 28) / 2, vw + i * 30, 28, 28) : new(W - 96 + i * 30, (H - 28) / 2, 28, 28);
+    Rectangle TextArea => new(2, vw - 2, vw - 4, TextH);
+    Rectangle Btn(int i) => vertical ? new((vw - 28) / 2, vw + TextH + i * 30, 28, 28) : new(W - 96 + i * 30, (H - 28) / 2, 28, 28);
+    // Texto en marquesina para la barra vertical
+    readonly Timer marquee = new() { Interval = 40 };
+    int scroll;
+    string lastTitle;
     int Axis(Point p) => vertical ? p.Y : p.X; // eje sobre el que se arrastra
     readonly ToolTip tip = new() { InitialDelay = 300 };
     string tipText = "";
@@ -254,6 +260,8 @@ class BarWidget : Form
             if (owner && Program.AllScreens && !relaunching) { int n = Taskbars().Count; if (n > 0 && n != Program.Instances) { relaunching = true; Program.Relaunch(); } }
         };
         watch.Start();
+        marquee.Tick += (_, _) => { if (vertical) { scroll++; Invalidate(TextArea); } };
+        marquee.Start();
         _ = InitAsync();
     }
 
@@ -466,7 +474,16 @@ class BarWidget : Form
         // Texto: en vertical no cabe, se muestra al pasar el ratón
         var t = string.IsNullOrEmpty(artist) ? title : title + " — " + artist;
         if (t != tipText) { tipText = t; tip.SetToolTip(this, vertical ? t : null); }
-        if (!vertical)
+        if (vertical)
+        {
+            if (title != lastTitle) { lastTitle = title; scroll = 0; }
+            var ta = TextArea;
+            using var small = new Font("Segoe UI", 7.5f);
+            using var smallBold = new Font("Segoe UI", 7.5f, FontStyle.Bold);
+            DrawScrolling(g, title, smallBold, Color.White, new Rectangle(ta.X, ta.Y, ta.Width, 15));
+            DrawScrolling(g, artist, small, Color.FromArgb(170, 170, 170), new Rectangle(ta.X, ta.Y + 14, ta.Width, 15));
+        }
+        else
         {
             int tx = art.Right + 8, tw = W - 96 - tx - 4;
             var fmt = TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix | TextFormatFlags.SingleLine;
@@ -481,6 +498,27 @@ class BarWidget : Form
             if (hover == i) using (var hb = new SolidBrush(Color.FromArgb(60, 255, 255, 255))) g.FillEllipse(hb, r);
             DrawIcon(g, i, r);
         }
+    }
+
+    // Dibuja el texto centrado si cabe; si no, lo desplaza en bucle con una pausa al inicio
+    void DrawScrolling(Graphics g, string text, Font f, Color col, Rectangle r)
+    {
+        if (string.IsNullOrEmpty(text)) return;
+        var flags = TextFormatFlags.NoPrefix | TextFormatFlags.SingleLine | TextFormatFlags.NoPadding;
+        int tw = TextRenderer.MeasureText(g, text, f, Size.Empty, flags).Width;
+        if (tw <= r.Width)
+        {
+            TextRenderer.DrawText(g, text, f, r, col, flags | TextFormatFlags.HorizontalCenter);
+            return;
+        }
+        const int gap = 24, pause = 40; // ~1,6 s quieto antes de empezar a desplazarse
+        int cycle = tw + gap;
+        int off = Math.Max(0, scroll % (cycle + pause) - pause);
+        var state = g.Save();
+        g.SetClip(r);
+        TextRenderer.DrawText(g, text, f, new Point(r.X - off, r.Y), col, flags);
+        TextRenderer.DrawText(g, text, f, new Point(r.X - off + cycle, r.Y), col, flags);
+        g.Restore(state);
     }
 
     void DrawIcon(Graphics g, int i, Rectangle r)
