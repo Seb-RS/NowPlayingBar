@@ -102,11 +102,141 @@ static class Autostart
 // Menús con WS_EX_TOOLWINDOW: sin esto, al abrir el menú aparece el icono de la app en la barra de tareas
 class ToolMenu : ContextMenuStrip
 {
+    public ToolMenu() { Fluent.Style(this); }
     protected override CreateParams CreateParams { get { var cp = base.CreateParams; cp.ExStyle |= 0x80; return cp; } }
+    protected override void OnHandleCreated(EventArgs e) { base.OnHandleCreated(e); Fluent.Round(Handle); }
 }
 class ToolDropDown : ToolStripDropDownMenu
 {
+    public ToolDropDown() { Fluent.Style(this); }
     protected override CreateParams CreateParams { get { var cp = base.CreateParams; cp.ExStyle |= 0x80; return cp; } }
+    protected override void OnHandleCreated(EventArgs e) { base.OnHandleCreated(e); Fluent.Round(Handle); }
+}
+
+// ---- Menú con estilo Windows 11 oscuro (esquinas redondeadas, iconos Fluent, interruptor) ----
+static class Fluent
+{
+    public static readonly Color Bg = Color.FromArgb(44, 44, 44), Hover = Color.FromArgb(61, 61, 61),
+        Text = Color.FromArgb(240, 240, 240), Dim = Color.FromArgb(140, 140, 140), Line = Color.FromArgb(64, 64, 64),
+        Accent = Color.FromArgb(124, 92, 255);
+    public const string Toggle = "toggle";
+    public const int IconX = 8, IconW = 24, TextX = 40; // columna de iconos y columna de texto
+    static readonly string IconFont = new System.Drawing.Text.InstalledFontCollection().Families.Any(f => f.Name == "Segoe Fluent Icons") ? "Segoe Fluent Icons" : "Segoe MDL2 Assets";
+    public static Font Icons(float size) => new(IconFont, size);
+
+    [DllImport("dwmapi.dll")] static extern int DwmSetWindowAttribute(IntPtr h, int attr, ref int val, int size);
+    public static void Round(IntPtr h)
+    {
+        int round = 2; DwmSetWindowAttribute(h, 33, ref round, 4);   // DWMWA_WINDOW_CORNER_PREFERENCE = redondeado
+        int border = 0x00404040; DwmSetWindowAttribute(h, 34, ref border, 4); // DWMWA_BORDER_COLOR
+    }
+
+    public static void Style(ToolStripDropDownMenu m)
+    {
+        m.Renderer = new Renderer();
+        m.Font = new Font("Segoe UI", 9.75f);
+        m.BackColor = Bg; m.ForeColor = Text;
+        m.ShowImageMargin = true; m.ShowCheckMargin = false;
+        m.Padding = new Padding(4, 4, 4, 4);
+        m.DropShadowEnabled = false; // la sombra la pone Windows (DWM) con las esquinas redondeadas
+        m.ItemAdded += (_, e) =>
+        {
+            if (e.Item is ToolStripSeparator) return;
+            e.Item.Padding = new Padding(0, 6, 18, 6); // margen derecho: el texto empieza en TextX, más a la derecha que el de WinForms
+            e.Item.ForeColor = Text;
+            if (e.Item is not ToolStripMenuItem mi) return;
+            Hook(mi);
+            if ((mi.Tag as string) == Toggle) mi.ShortcutKeyDisplayString = "            "; // espacio para el interruptor
+        };
+    }
+
+    // Icono Fluent de una opción: se guarda en AccessibleDescription para no chocar con Tag
+    public static T Icon<T>(this T item, string glyph) where T : ToolStripItem { item.AccessibleDescription = glyph; return item; }
+
+    class Renderer : ToolStripRenderer
+    {
+        protected override void OnRenderToolStripBackground(ToolStripRenderEventArgs e) => e.Graphics.Clear(Bg);
+        protected override void OnRenderToolStripBorder(ToolStripRenderEventArgs e) { }
+        protected override void OnRenderImageMargin(ToolStripRenderEventArgs e) { }
+
+        protected override void OnRenderMenuItemBackground(ToolStripItemRenderEventArgs e)
+        {
+            if (!e.Item.Selected || !e.Item.Enabled) return;
+            var g = e.Graphics; g.SmoothingMode = SmoothingMode.AntiAlias;
+            var r = new Rectangle(2, 1, e.Item.Width - 4, e.Item.Height - 2);
+            using var path = RoundRect(r, 5); using var b = new SolidBrush(Hover); g.FillPath(b, path);
+        }
+
+        protected override void OnRenderSeparator(ToolStripSeparatorRenderEventArgs e)
+        {
+            using var p = new Pen(Line); int y = e.Item.Height / 2;
+            e.Graphics.DrawLine(p, 8, y, e.Item.Width - 8, y);
+        }
+
+        protected override void OnRenderItemText(ToolStripItemTextRenderEventArgs e)
+        {
+            if (e.Item is ToolStripMenuItem mi && (mi.Tag as string) == Toggle && e.Text == mi.ShortcutKeyDisplayString) { DrawSwitch(e.Graphics, mi); return; }
+            if (e.Item is ToolStripMenuItem m2 && e.Text == m2.ShortcutKeyDisplayString) return;
+            // Texto dibujado a mano: misma columna para todas las opciones y centrado vertical exacto con el icono
+            var col = e.Item.Enabled || e.Item.Font.Name.Contains("Semibold") ? Text : Dim; // la cabecera va en blanco
+            var r = new Rectangle(TextX, 0, e.Item.Width - TextX - 28, e.Item.Height);
+            TextRenderer.DrawText(e.Graphics, e.Text, e.Item.Font, r, col,
+                TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
+        }
+
+        protected override void OnRenderItemImage(ToolStripItemImageRenderEventArgs e) { }
+
+        protected override void OnRenderItemCheck(ToolStripItemImageRenderEventArgs e) { }
+
+
+        protected override void OnRenderArrow(ToolStripArrowRenderEventArgs e)
+        {
+            using var f = Icons(8f);
+            TextRenderer.DrawText(e.Graphics, "", f, e.ArrowRectangle, Dim, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+        }
+
+        // Icono a la izquierda; si la opción está marcada (y no es interruptor), una marca en color de acento
+        public void DrawLeft(Graphics g, ToolStripMenuItem mi)
+        {
+            var box = new Rectangle(IconX, 0, IconW, mi.Height);
+            bool toggle = (mi.Tag as string) == Toggle;
+            string glyph = mi.AccessibleDescription;
+            if (mi.Checked && !toggle && string.IsNullOrEmpty(glyph)) glyph = "";
+            if (string.IsNullOrEmpty(glyph)) return;
+            var col = mi.Checked && !toggle ? Accent : mi.Enabled ? Text : Dim;
+            using var f = Icons(10.5f);
+            TextRenderer.DrawText(g, glyph, f, box, col, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+            if (mi.Checked && !toggle && mi.AccessibleDescription != null && mi.AccessibleDescription != "")
+            {
+                using var dot = new SolidBrush(Accent); g.SmoothingMode = SmoothingMode.AntiAlias;
+                g.FillEllipse(dot, 2, mi.Height / 2 - 2, 4, 4);
+            }
+        }
+
+        static void DrawSwitch(Graphics g, ToolStripMenuItem mi)
+        {
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            var r = new Rectangle(mi.Width - 52, mi.Height / 2 - 9, 38, 18);
+            using var path = RoundRect(r, 9);
+            if (mi.Checked) { using var b = new SolidBrush(Accent); g.FillPath(b, path); }
+            else { using var p = new Pen(Dim, 1.2f); g.DrawPath(p, path); }
+            int d = mi.Checked ? 12 : 10;
+            int x = mi.Checked ? r.Right - 4 - d : r.X + 4;
+            using var k = new SolidBrush(mi.Checked ? Color.White : Dim);
+            g.FillEllipse(k, x, r.Y + (r.Height - d) / 2, d, d);
+        }
+    }
+
+    public static GraphicsPath RoundRect(Rectangle r, int rad)
+    {
+        var p = new GraphicsPath(); int d = rad * 2;
+        p.AddArc(r.X, r.Y, d, d, 180, 90); p.AddArc(r.Right - d, r.Y, d, d, 270, 90);
+        p.AddArc(r.Right - d, r.Bottom - d, d, d, 0, 90); p.AddArc(r.X, r.Bottom - d, d, d, 90, 90);
+        p.CloseFigure(); return p;
+    }
+
+    // Se llama desde Paint de cada opción para dibujar icono/marca a la izquierda
+    public static void Hook(ToolStripMenuItem mi) => mi.Paint += (_, e) => ((mi.Owner as ToolStripDropDownMenu)?.Renderer as Renderer)?.DrawLeft(e.Graphics, mi);
 }
 
 class BarWidget : Form
@@ -260,7 +390,12 @@ class BarWidget : Form
         screen = Math.Max(0, screenIndex);
 
         var menu = new ToolMenu();
-        var scr = new ToolStripMenuItem("Pantalla") { DropDown = new ToolDropDown() };
+        // Cabecera con el logo y el nombre
+        var head = new ToolStripMenuItem("NowPlayingBar") { Enabled = false, Font = new Font("Segoe UI Semibold", 9.75f) };
+        head.Paint += (_, e) => { e.Graphics.SmoothingMode = SmoothingMode.AntiAlias; DrawLogo(e.Graphics, new RectangleF(Fluent.IconX + (Fluent.IconW - 18) / 2f, (head.Height - 18) / 2f, 18, 18)); };
+        menu.Items.Add(head);
+        menu.Items.Add(new ToolStripSeparator());
+        var scr = new ToolStripMenuItem("Pantalla") { DropDown = new ToolDropDown() }.Icon("");
         scr.DropDownItems.Add("-");
         scr.DropDownOpening += (_, _) =>
         {
@@ -289,7 +424,7 @@ class BarWidget : Form
         menu.Items.Add(scr);
 
         // Fuente: automático (prioridad) o fijar una app concreta
-        var src = new ToolStripMenuItem("Fuente") { DropDown = new ToolDropDown() };
+        var src = new ToolStripMenuItem("Fuente") { DropDown = new ToolDropDown() }.Icon("");
         src.DropDownItems.Add("-");
         src.DropDownOpening += (_, _) =>
         {
@@ -309,12 +444,13 @@ class BarWidget : Form
             }
         };
         menu.Items.Add(src);
-        var autoItem = new ToolStripMenuItem("Iniciar con Windows") { Checked = Autostart.Enabled };
+        var autoItem = new ToolStripMenuItem("Iniciar con Windows") { Checked = Autostart.Enabled, Tag = Fluent.Toggle }.Icon("");
         autoItem.Click += (_, _) => { Autostart.Set(!Autostart.Enabled); autoItem.Checked = Autostart.Enabled; };
         menu.Opening += (_, _) => autoItem.Checked = Autostart.Enabled;
         menu.Items.Add(autoItem);
-        menu.Items.Add("Restablecer posición", null, (_, _) => { posX = 220; Place(); Save(); });
-        menu.Items.Add("Salir", null, (_, _) => Application.Exit());
+        menu.Items.Add(new ToolStripMenuItem("Restablecer posición", null, (_, _) => { posX = 220; Place(); Save(); }).Icon(""));
+        menu.Items.Add(new ToolStripSeparator());
+        menu.Items.Add(new ToolStripMenuItem("Salir", null, (_, _) => Application.Exit()).Icon(""));
         ContextMenuStrip = menu;
         if (owner) tray = new NotifyIcon { Icon = MakeIcon(), Text = "NowPlayingBar", Visible = true, ContextMenuStrip = menu };
 
