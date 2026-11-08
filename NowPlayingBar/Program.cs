@@ -545,7 +545,7 @@ class BarWidget : Form
         SetWindowLong(Handle, -16, style);
         SetWindowLong(Handle, -20, GetWindowLong(Handle, -20) | 0x80000); // WS_EX_LAYERED
         SetParent(Handle, taskbar);
-        SetLayeredWindowAttributes(Handle, 0, 255, 0x2); // LWA_ALPHA opaco
+        SetLayeredWindowAttributes(Handle, 0, idle ? (byte)0 : alpha, 0x2); // LWA_ALPHA (fundido de entrada/salida)
         lastPos = Rectangle.Empty;
         Place();
         ShowWindow(Handle, idle ? 0 : 4); // SW_SHOWNOACTIVATE (oculta si no suena nada)
@@ -835,7 +835,33 @@ class BarWidget : Form
     }
 
     bool idle;
-    void SetIdle(bool on) { if (idle == on) return; idle = on; if (IsHandleCreated) ShowWindow(Handle, on ? 0 : 4); }
+    // Entrada/salida con fundido (opacidad de la ventana layered), curva ease-out como las animaciones de Windows 11
+    byte alpha = 255;
+    double fadeFrom, fadeTo; DateTime fadeStart;
+    System.Windows.Forms.Timer fadeTimer;
+    const double FadeMs = 220;
+
+    void SetIdle(bool on)
+    {
+        if (idle == on) return; idle = on;
+        if (!IsHandleCreated) return;
+        if (!on) { if (fadeTimer?.Enabled != true) alpha = 0; ApplyAlpha(); ShowWindow(Handle, 4); }
+        fadeFrom = alpha; fadeTo = on ? 0 : 255; fadeStart = DateTime.Now;
+        if (fadeTimer == null)
+        {
+            fadeTimer = new System.Windows.Forms.Timer { Interval = 15 };
+            fadeTimer.Tick += (_, _) =>
+            {
+                double k = Math.Min(1, (DateTime.Now - fadeStart).TotalMilliseconds / FadeMs);
+                double e = 1 - Math.Pow(1 - k, 3); // ease-out cúbica
+                alpha = (byte)Math.Round(fadeFrom + (fadeTo - fadeFrom) * e);
+                ApplyAlpha();
+                if (k >= 1) { fadeTimer.Stop(); if (idle) ShowWindow(Handle, 0); }
+            };
+        }
+        fadeTimer.Start();
+    }
+    void ApplyAlpha() { if (IsHandleCreated) SetLayeredWindowAttributes(Handle, 0, alpha, 0x2); }
 
     void ShowNothing()
     {
