@@ -461,14 +461,18 @@ class BarWidget : Form
                 bool p = IsPlaying(x);
                 BeginInvoke(() =>
                 {
-                    if (p) playStart[x.SourceAppUserModelId] = DateTime.Now; else playStart.Remove(x.SourceAppUserModelId);
-                    if (session != null && x.SourceAppUserModelId == session.SourceAppUserModelId) UpdatePlayback();
-                    PickSession();
+                    try
+                    {
+                        if (p) playStart[id] = DateTime.Now; else playStart.Remove(id);
+                        if (session != null && id == session.SourceAppUserModelId) UpdatePlayback();
+                        PickSession();
+                    }
+                    catch { }
                 });
             };
             s.MediaPropertiesChanged += (x, _) =>
             {
-                BeginInvoke(() => { if (session != null && x.SourceAppUserModelId == session.SourceAppUserModelId) { var t = UpdateMedia(); } });
+                BeginInvoke(() => { try { if (session != null && id == session.SourceAppUserModelId) { var t = UpdateMedia(); } } catch { } });
             };
         }
     }
