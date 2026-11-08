@@ -15,6 +15,13 @@ static class Program
     [STAThread]
     static void Main()
     {
+        // Una sola instancia: si ya está abierto (inicio de Windows + abrirlo a mano), no abrir otro.
+        // Al relanzar (cambio de modo de pantallas) se espera a que la instancia anterior termine.
+        single = new System.Threading.Mutex(false, @"Local\NowPlayingBar.Single");
+        bool relaunch = Environment.GetCommandLineArgs().Contains("--relaunch");
+        try { if (!single.WaitOne(relaunch ? 10000 : 0)) return; }
+        catch (System.Threading.AbandonedMutexException) { }
+
         Application.EnableVisualStyles();
         Application.SetCompatibleTextRenderingDefault(false);
         var (_, screen) = BarWidget.LoadCfg();
@@ -22,19 +29,22 @@ static class Program
         var ctx = new ApplicationContext();
         if (AllScreens)
         {
-            int n = Math.Max(1, BarWidget.Taskbars().Count);
-            for (int i = 0; i < n; i++) new BarWidget(i, owner: i == 0).Show();
+            Instances = Math.Max(1, BarWidget.Taskbars().Count);
+            for (int i = 0; i < Instances; i++) new BarWidget(i, owner: i == 0).Show();
         }
         else new BarWidget(screen, owner: true).Show();
         Application.Run(ctx);
+        try { single.ReleaseMutex(); } catch { }
     }
 
+    static System.Threading.Mutex single;
     public static bool AllScreens;
+    public static int Instances = 1;
 
     // Cambiar de modo (una pantalla / todas) reiniciando la app
     public static void Relaunch()
     {
-        try { System.Diagnostics.Process.Start(Environment.ProcessPath); } catch { }
+        try { System.Diagnostics.Process.Start(Environment.ProcessPath, "--relaunch"); } catch { }
         Application.Exit();
     }
 }
@@ -117,6 +127,7 @@ class BarWidget : Form
     GlobalSystemMediaTransportControlsSession session;
     string title = "Nada sonando", artist = "";
     Image cover;
+    static bool relaunching;
     bool playing;
     int hover = -1; // 0 anterior, 1 play/pausa, 2 siguiente
     readonly NotifyIcon tray;
@@ -225,7 +236,10 @@ class BarWidget : Form
         if (owner) tray = new NotifyIcon { Icon = MakeIcon(), Text = "NowPlayingBar", Visible = true, ContextMenuStrip = menu };
 
         // Re-incrustar si explorer.exe se reinicia o cambia el tamaño de la barra
-        watch.Tick += (_, _) => { if (!IsWindow(taskbar) || GetParent(Handle) != taskbar || (GetWindowLong(Handle, -20) & 0x80000) == 0) Embed(); else Place(); MatchBarColor(); PickSession(); };
+        watch.Tick += (_, _) => { if (!IsWindow(taskbar) || GetParent(Handle) != taskbar || (GetWindowLong(Handle, -20) & 0x80000) == 0) Embed(); else Place(); MatchBarColor(); PickSession();
+            // Modo "Todas las pantallas": si se conecta o desconecta un monitor, rehacer los widgets
+            if (owner && Program.AllScreens && !relaunching) { int n = Taskbars().Count; if (n > 0 && n != Program.Instances) { relaunching = true; Program.Relaunch(); } }
+        };
         watch.Start();
         _ = InitAsync();
     }
@@ -313,7 +327,8 @@ class BarWidget : Form
     static void SetPinned(string id) { pinned = id; try { File.WriteAllText(SourceCfg, id ?? ""); } catch { } }
 
     readonly System.Collections.Generic.Dictionary<string, DateTime> playStart = new();
-    readonly System.Collections.Generic.HashSet<string> hooked = new();
+    // Sesión enganchada por app: si la app se cierra y se vuelve a abrir, la sesión es otra y hay que engancharla de nuevo
+    readonly System.Collections.Generic.Dictionary<string, GlobalSystemMediaTransportControlsSession> hooked = new();
 
     static bool IsPlaying(GlobalSystemMediaTransportControlsSession s)
     {
@@ -334,11 +349,15 @@ class BarWidget : Form
 
     void HookAll(System.Collections.Generic.IReadOnlyList<GlobalSystemMediaTransportControlsSession> all)
     {
+        // Olvidar apps que ya se cerraron, para volver a engancharlas si se abren de nuevo
+        var ids = all.Select(x => x.SourceAppUserModelId).ToHashSet();
+        foreach (var gone in hooked.Keys.Where(k => !ids.Contains(k)).ToList()) { hooked.Remove(gone); playStart.Remove(gone); }
         foreach (var s in all)
         {
             var id = s.SourceAppUserModelId;
             if (IsPlaying(s) && !playStart.ContainsKey(id)) playStart[id] = DateTime.Now;
-            if (!hooked.Add(id)) continue;
+            if (hooked.ContainsKey(id)) continue;
+            hooked[id] = s;
             s.PlaybackInfoChanged += (x, _) =>
             {
                 bool p = IsPlaying(x);
@@ -376,7 +395,7 @@ class BarWidget : Form
 
         if (s?.SourceAppUserModelId == session?.SourceAppUserModelId && (s == null) == (session == null)) { session = s; return; }
         session = s;
-        if (s == null) { title = "Nada sonando"; artist = ""; cover = null; playing = false; Invalidate(); return; }
+        if (s == null) { title = "Nada sonando"; artist = ""; var old = cover; cover = null; old?.Dispose(); playing = false; Invalidate(); return; }
         _ = UpdateMedia(); UpdatePlayback();
     }
 
@@ -388,18 +407,23 @@ class BarWidget : Form
 
     async Task UpdateMedia()
     {
+        var s = session;
+        if (s == null) return;
         try
         {
-            var p = await session.TryGetMediaPropertiesAsync();
-            title = string.IsNullOrEmpty(p.Title) ? "Sin título" : p.Title;
-            artist = p.Artist ?? "";
-            cover = null;
+            var p = await s.TryGetMediaPropertiesAsync();
+            Image img = null;
             if (p.Thumbnail != null)
             {
                 using var st = (await p.Thumbnail.OpenReadAsync()).AsStreamForRead();
                 var ms = new MemoryStream(); await st.CopyToAsync(ms); ms.Position = 0;
-                cover = Image.FromStream(ms);
+                img = Image.FromStream(ms);
             }
+            // Si mientras cargaba se cambió de reproductor, descartar este resultado
+            if (session == null || s.SourceAppUserModelId != session.SourceAppUserModelId) { img?.Dispose(); return; }
+            title = string.IsNullOrEmpty(p.Title) ? "Sin título" : p.Title;
+            artist = p.Artist ?? "";
+            var old = cover; cover = img; old?.Dispose(); // liberar la portada anterior
         }
         catch { }
         Invalidate();
