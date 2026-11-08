@@ -307,19 +307,21 @@ static class Fluent
     {
         static Arrow inst; bool right; ToolStripDropDown owner;
         const int AW = Gap + 2, AH = 18;
-        Arrow() { FormBorderStyle = FormBorderStyle.None; ShowInTaskbar = false; TopMost = true; BackColor = Color.Magenta; TransparencyKey = Color.Magenta; StartPosition = FormStartPosition.Manual; Size = new(AW, AH); }
+        Arrow() { FormBorderStyle = FormBorderStyle.None; ShowInTaskbar = false; BackColor = Color.Magenta; TransparencyKey = Color.Magenta; StartPosition = FormStartPosition.Manual; Size = new(AW, AH); }
         protected override bool ShowWithoutActivation => true;
-        protected override CreateParams CreateParams { get { var cp = base.CreateParams; cp.ExStyle |= 0x80 | 0x08000000; return cp; } }
+        protected override CreateParams CreateParams { get { var cp = base.CreateParams; cp.ExStyle |= 0x80 | 0x08000000 | 0x8 | 0x20; return cp; } } // TOOLWINDOW | NOACTIVATE | TOPMOST | TRANSPARENT (no roba foco ni clics: si no, el menú se cierra)
         public static void ShowAt(bool right, int x, int cy, ToolStripDropDown owner)
         {
             inst ??= new Arrow();
             inst.right = right; inst.owner = owner;
             inst.Bounds = new Rectangle(x, cy - AH / 2, AW, AH);
-            if (!inst.Visible) inst.Show();
-            SetWindowPos(inst.Handle, new IntPtr(-1), 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0010); // encima del submenú
+            if (!inst.IsHandleCreated) inst.CreateHandle();
+            ShowWindow(inst.Handle, 4); // SW_SHOWNOACTIVATE
+            SetWindowPos(inst.Handle, new IntPtr(-1), inst.Left, inst.Top, AW, AH, 0x0010 | 0x0040); // encima del submenú
             inst.Invalidate();
         }
-        public static void HideFor(ToolStripDropDown d) { if (inst != null && inst.owner == d) inst.Hide(); }
+        public static void HideFor(ToolStripDropDown d) { if (inst != null && inst.owner == d && inst.IsHandleCreated) ShowWindow(inst.Handle, 0); }
+        [DllImport("user32.dll")] static extern bool ShowWindow(IntPtr h, int cmd);
         protected override void OnPaint(PaintEventArgs e)
         {
             var g = e.Graphics; // sin antialias: el color clave (magenta) dejaría bordes rosados
