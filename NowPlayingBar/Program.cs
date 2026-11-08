@@ -111,7 +111,6 @@ static class Autostart
             using (var k = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(RunKey))
             {
                 if (on) k.SetValue("NowPlayingBar", ExePath); else k.DeleteValue("NowPlayingBar", false);
-                k.DeleteValue("NowPlayingBar", false); // nombre antiguo del proyecto
             }
             using var a = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(AppKey);
             a.SetValue("AutostartChosen", 1);
@@ -351,12 +350,10 @@ class BarWidget : Form
 
     public static (int posX, int screen) LoadCfg()
     {
-        try { if (!File.Exists(Cfg) && File.Exists(OldCfg)) File.Copy(OldCfg, Cfg); } catch { }
         try { var p = File.ReadAllText(Cfg).Split(','); return (int.Parse(p[0]), p.Length > 1 ? int.Parse(p[1]) : 0); }
         catch { return (220, 0); }
     }
     static readonly string Cfg = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "NowPlayingBar.txt");
-    static readonly string OldCfg = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "NowPlayingBar.txt");
     readonly string cfg = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "NowPlayingBar.txt");
     MediaManager mgr;
     GlobalSystemMediaTransportControlsSession session;
@@ -624,7 +621,7 @@ class BarWidget : Form
         try { return s.GetPlaybackInfo()?.PlaybackStatus == GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing; } catch { return false; }
     }
 
-    // Nombre legible a partir del identificador de la app (p. ej. "Music.exe" -> "Music")
+    // Nombre legible a partir del identificador de la app (p. ej. "Player.exe" -> "Player")
     public static string AppName(string id)
     {
         if (string.IsNullOrEmpty(id)) return L.T("unknown");
@@ -638,7 +635,7 @@ class BarWidget : Form
 
     // ---- ¿Música o video? ----
     // Apps de música conocidas: siempre música. Navegadores: música solo si la página informa un álbum
-    // (YouTube Music, Music web, Deezer…); un video de YouTube o una película no lo tiene.
+    // (YouTube Music, Deezer…); un video de YouTube o una película no lo tiene.
     static readonly string[] Browsers = { "chrome", "msedge", "brave", "firefox", "opera", "vivaldi", "arc", "zen", "floorp", "librewolf", "thorium", "yandex" };
     static readonly string[] VideoApps = { "vlc", "mpc-hc", "mpc-be", "potplayer", "mpv", "netflix", "disney", "primevideo", "stremio", "kodi", "plex", "jellyfin", "video.ui", "zunevideo", "media player" };
     readonly System.Collections.Generic.Dictionary<string, bool> musicInfo = new(); // id -> la página/canción actual es música
@@ -828,7 +825,7 @@ class BarWidget : Form
             if (changing && changeFromSkip && p.Title == titleAtChange && (DateTime.Now - changeStart).TotalSeconds < 2.5) { img?.Dispose(); return; }
             changing = false;
             bool newSong = p.Title != title || (p.Artist ?? "") != artist;
-            // Algunos reproductores (Music) mandan el título nuevo con la portada anterior: tratarla como no cargada
+            // Algunos reproductores mandan el título nuevo con la portada anterior: tratarla como no cargada
             if (img != null && (newSong || coverPending) && hash != null && hash == coverHash) { img.Dispose(); img = null; }
             if (img == null && cover != null && (newSong || coverPending))
             {

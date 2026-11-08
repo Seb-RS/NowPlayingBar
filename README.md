@@ -13,6 +13,7 @@
 ## Features
 
 - **Cover art, title and artist** in the taskbar, with ⏮ ⏯ ⏭ buttons.
+- **Works with any player** that uses Windows media controls: Apple Music, YouTube Music, YouTube in the browser, foobar2000 and more.
 - **Music first:** if music and a video (for example, a movie in the browser) play at the same time, the bar shows the music.
 - **Pick a source:** right-click → **Source** to choose **Automatic** or always show one app.
 - **Smooth song changes:** the previous song stays dimmed until the new title and cover art are ready.
@@ -73,6 +74,7 @@ NowPlayingBar only reads the media information that Windows exposes locally (tit
 
 ## Trademarks
 
+Apple Music, YouTube and other names are trademarks of their respective owners. This project is not affiliated with, sponsored or endorsed by any of them.
 
 ## License
 
@@ -85,6 +87,7 @@ NowPlayingBar only reads the media information that Windows exposes locally (tit
 **NowPlayingBar** muestra lo que estás escuchando dentro de la barra de tareas de Windows 11, con botones de anterior, pausa y siguiente.
 
 - Portada, título y artista en la barra, con botones ⏮ ⏯ ⏭.
+- Funciona con cualquier reproductor que use los controles multimedia de Windows: Apple Music, YouTube Music, YouTube en el navegador y otros.
 - **La música primero:** si suenan música y un video a la vez, muestra la música.
 - Clic derecho → **Fuente** para elegir **Automático** o fijar una app.
 - Al cambiar de canción, la anterior se queda atenuada hasta que cargan el título y la portada nuevos.

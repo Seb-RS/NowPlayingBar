@@ -69,15 +69,7 @@ Name: "{group}\NowPlayingBar"; Filename: "{app}\NowPlayingBar.exe"
 Name: "{group}\{cm:Uninstall}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\NowPlayingBar"; Filename: "{app}\NowPlayingBar.exe"; Tasks: desktopicon
 
-; Limpiar la versión anterior, que se llamaba NowPlayingBar
-[InstallDelete]
-Type: filesandordirs; Name: "{localappdata}\Programs\NowPlayingBar"
-Type: files; Name: "{userprograms}\NowPlayingBar\*.lnk"
-Type: dirifempty; Name: "{userprograms}\NowPlayingBar"
-Type: files; Name: "{userdesktop}\NowPlayingBar.lnk"
-
 [Registry]
-Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueName: "NowPlayingBar"; Flags: deletevalue dontcreatekey
 ; Recordar que el usuario ya eligió en el instalador, para que la app no lo cambie al abrirse
 Root: HKCU; Subkey: "Software\NowPlayingBar"; ValueType: dword; ValueName: "AutostartChosen"; ValueData: 1; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "NowPlayingBar"; ValueData: """{app}\NowPlayingBar.exe"""; Flags: uninsdeletevalue; Tasks: startup
@@ -89,7 +81,6 @@ Filename: "{app}\NowPlayingBar.exe"; Description: "{cm:OpenNow}"; Flags: nowait 
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 var Code: Integer;
 begin
-  Exec('taskkill.exe', '/F /IM NowPlayingBar.exe', '', SW_HIDE, ewWaitUntilTerminated, Code);
   Exec('taskkill.exe', '/F /IM NowPlayingBar.exe', '', SW_HIDE, ewWaitUntilTerminated, Code);
   Result := '';
 end;
