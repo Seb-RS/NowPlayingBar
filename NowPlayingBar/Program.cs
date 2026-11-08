@@ -476,7 +476,7 @@ class BarWidget : Form
             var auto = new ToolStripMenuItem(L.T("auto")) { Checked = pinned == null };
             auto.Click += (_, _) => { SetPinned(null); PickSession(); };
             src.DropDownItems.Add(auto);
-            var all = mgr?.GetSessions();
+            var all = mgr?.GetSessions().Where(x => !IsIgnored(x)).ToList();
             if (all == null || all.Count == 0) { src.DropDownItems.Add(new ToolStripMenuItem(L.T("noplayer")) { Enabled = false }); return; }
             src.DropDownItems.Add(new ToolStripSeparator());
             foreach (var x in all)
@@ -659,6 +659,9 @@ class BarWidget : Form
     // (YouTube Music, Deezer…); un video de YouTube o una película no lo tiene.
     static readonly string[] Browsers = { "chrome", "msedge", "brave", "firefox", "opera", "vivaldi", "arc", "zen", "floorp", "librewolf", "thorium", "yandex" };
     static readonly string[] VideoApps = { "vlc", "mpc-hc", "mpc-be", "potplayer", "mpv", "netflix", "disney", "primevideo", "stremio", "kodi", "plex", "jellyfin", "video.ui", "zunevideo", "media player" };
+    // Mensajería: notas de voz y llamadas también usan los controles de medios; nunca se muestran
+    static readonly string[] IgnoredApps = { "whatsapp", "telegram", "discord", "teams", "slack", "signal", "messenger", "skype", "zoom", "phonelink", "yourphone" };
+    static bool IsIgnored(GlobalSystemMediaTransportControlsSession s) { try { var l = (s.SourceAppUserModelId ?? "").ToLowerInvariant(); return IgnoredApps.Any(a => l.Contains(a)); } catch { return true; } }
     readonly System.Collections.Generic.Dictionary<string, bool> musicInfo = new(); // id -> la página/canción actual es música
     readonly System.Collections.Generic.Dictionary<string, DateTime> lastMusicAt = new();
     readonly System.Collections.Generic.Dictionary<string, DateTime> stopAt = new(); // id -> cuándo dejó de sonar (cambio de canción)
@@ -785,7 +788,7 @@ class BarWidget : Form
     void PickSession()
     {
         if (mgr == null) return;
-        var all = mgr.GetSessions();
+        var all = mgr.GetSessions().Where(x => !IsIgnored(x)).ToList();
         HookAll(all);
 
         GlobalSystemMediaTransportControlsSession s = null;
@@ -804,7 +807,7 @@ class BarWidget : Form
             // Modo "Solo música": los videos y películas se ignoran por completo
             var cands = OnlyMusic ? all.Where(IsMusic).ToList() : all.ToList();
             var cur = mgr.GetCurrentSession();
-            if (cur != null && OnlyMusic && !IsMusic(cur)) cur = null;
+            if (cur != null && (IsIgnored(cur) || (OnlyMusic && !IsMusic(cur)))) cur = null;
             var playingNow = cands.Where(IsPlaying).ToList();
             // La música tiene prioridad: si suena música, los videos (películas en el navegador, etc.) no la tapan
             if (playingNow.Any(IsMusic)) playingNow = playingNow.Where(IsMusic).ToList();
