@@ -70,6 +70,9 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
+          name: NowPlayingBar ${{ github.ref_name }}
+          # Notas de la versión: release-notes/vX.Y.Z.md (si existe)
+          body_path: ${{ hashFiles(format('release-notes/{0}.md', github.ref_name)) != '' && format('release-notes/{0}.md', github.ref_name) || '' }}
           files: |
             ${{ vars.SIGNPATH_ORGANIZATION_ID != '' && 'signed/*' || '*.zip' }}
             ${{ vars.SIGNPATH_ORGANIZATION_ID == '' && 'NowPlayingBar-Setup-*.exe' || '' }}
