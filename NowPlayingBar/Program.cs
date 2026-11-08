@@ -199,7 +199,7 @@ static class Fluent
         protected override void OnRenderMenuItemBackground(ToolStripItemRenderEventArgs e)
         {
             if (!e.Item.Selected || !e.Item.Enabled) return;
-            var g = e.Graphics; g.SmoothingMode = SmoothingMode.AntiAlias;
+            var g = e.Graphics; // sin antialias: el color clave (magenta) dejaría bordes rosados
             var r = new Rectangle(2, 1, e.Item.Width - 4, e.Item.Height - 2);
             using var path = RoundRect(r, 5); using var b = new SolidBrush(Hover); g.FillPath(b, path);
         }
@@ -286,14 +286,51 @@ static class Fluent
             d.BeginInvoke(() =>
             {
                 if (!GetWindowRect(p.Handle, out var pr) || !GetWindowRect(d.Handle, out var dr)) return;
-                int x = dr.L >= (pr.L + pr.R) / 2 ? pr.R - 4 : pr.L - (dr.R - dr.L) + 4; // como Windows 11: el submenú monta unos px sobre el padre
+                bool right = dr.L >= (pr.L + pr.R) / 2;
+                int x = right ? pr.R + Gap : pr.L - (dr.R - dr.L) - Gap;
                 SetWindowPos(d.Handle, IntPtr.Zero, x, dr.T, 0, 0, 0x0001 | 0x0004 | 0x0010); // NOSIZE | NOZORDER | NOACTIVATE
+                // Flecha que apunta a la opción que abrió el submenú
+                var ib = p.RectangleToScreen(mi.Bounds);
+                int cy = Math.Clamp(ib.Top + ib.Height / 2, dr.T + 12, dr.B - 12);
+                Arrow.ShowAt(right, right ? pr.R : pr.L - Gap - 2, cy, d);
             });
         };
+        mi.DropDown.Closed += (_, _) => Arrow.HideFor(mi.DropDown);
     }
+    const int Gap = 9;
     struct RC { public int L, T, R, B; }
     [DllImport("user32.dll")] static extern bool GetWindowRect(IntPtr h, out RC r);
     [DllImport("user32.dll")] static extern bool SetWindowPos(IntPtr h, IntPtr after, int x, int y, int cx, int cy, uint flags);
+
+    // Ventanita con forma de triángulo entre menú y submenú, mismo fondo y borde que el menú
+    class Arrow : Form
+    {
+        static Arrow inst; bool right; ToolStripDropDown owner;
+        const int AW = Gap + 2, AH = 18;
+        Arrow() { FormBorderStyle = FormBorderStyle.None; ShowInTaskbar = false; TopMost = true; BackColor = Color.Magenta; TransparencyKey = Color.Magenta; StartPosition = FormStartPosition.Manual; Size = new(AW, AH); }
+        protected override bool ShowWithoutActivation => true;
+        protected override CreateParams CreateParams { get { var cp = base.CreateParams; cp.ExStyle |= 0x80 | 0x08000000; return cp; } }
+        public static void ShowAt(bool right, int x, int cy, ToolStripDropDown owner)
+        {
+            inst ??= new Arrow();
+            inst.right = right; inst.owner = owner;
+            inst.Bounds = new Rectangle(x, cy - AH / 2, AW, AH);
+            if (!inst.Visible) inst.Show();
+            SetWindowPos(inst.Handle, new IntPtr(-1), 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0010); // encima del submenú
+            inst.Invalidate();
+        }
+        public static void HideFor(ToolStripDropDown d) { if (inst != null && inst.owner == d) inst.Hide(); }
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            var g = e.Graphics; // sin antialias: el color clave (magenta) dejaría bordes rosados
+            // tip en el lado del menú padre; la base monta 2 px sobre el borde del submenú para taparlo
+            float tip = right ? 0 : AW - 1, b = right ? AW : -1;
+            var pts = new[] { new PointF(b, 0), new PointF(tip, AH / 2f), new PointF(b, AH) };
+            using (var br = new SolidBrush(Bg)) g.FillPolygon(br, pts);
+            using var pen = new Pen(Color.FromArgb(0x40, 0x40, 0x40));
+            g.DrawLine(pen, pts[0], pts[1]); g.DrawLine(pen, pts[1], pts[2]);
+        }
+    }
 }
 
 class BarWidget : Form
