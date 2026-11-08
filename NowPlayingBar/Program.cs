@@ -660,6 +660,7 @@ class BarWidget : Form
     static readonly string[] Browsers = { "chrome", "msedge", "brave", "firefox", "opera", "vivaldi", "arc", "zen", "floorp", "librewolf", "thorium", "yandex" };
     static readonly string[] VideoApps = { "vlc", "mpc-hc", "mpc-be", "potplayer", "mpv", "netflix", "disney", "primevideo", "stremio", "kodi", "plex", "jellyfin", "video.ui", "zunevideo", "media player" };
     readonly System.Collections.Generic.Dictionary<string, bool> musicInfo = new(); // id -> la página/canción actual es música
+    readonly System.Collections.Generic.Dictionary<string, DateTime> lastMusicAt = new();
     readonly System.Collections.Generic.Dictionary<string, DateTime> stopAt = new(); // id -> cuándo dejó de sonar (cambio de canción)
 
     static bool IsBrowser(string id) { var l = (id ?? "").ToLowerInvariant(); return Browsers.Any(b => l.Contains(b)); }
@@ -738,6 +739,9 @@ class BarWidget : Form
             if (p.PlaybackType == Windows.Media.MediaPlaybackType.Video) music = false;
             else if (IsBrowser(id)) music = await BrowserIsMusic(s, p);
             else music = !VideoApps.Any(v => l.Contains(v));
+            // Navegador con varias pestañas: si hace poco sonaba música, un video de paso no lo saca del modo "Solo música"
+            if (music) lastMusicAt[id] = DateTime.Now;
+            else if (IsBrowser(id) && lastMusicAt.TryGetValue(id, out var lm) && (DateTime.Now - lm).TotalSeconds < 15) music = true;
             bool changed = !musicInfo.TryGetValue(id, out var old) || old != music;
             musicInfo[id] = music;
             if (changed) PickSession();
@@ -886,6 +890,9 @@ class BarWidget : Form
         try
         {
             var p = await s.TryGetMediaPropertiesAsync();
+            // El navegador usa una sola sesión para todas sus pestañas: en "Solo música", si pasa a un video, se queda la última canción
+            if (OnlyMusic && IsBrowser(s.SourceAppUserModelId) && title != L.T("nothing")
+                && (p.PlaybackType == Windows.Media.MediaPlaybackType.Video || !await BrowserIsMusic(s, p))) { changing = false; coverPending = false; Invalidate(); return; }
             Image img = null; string hash = null;
             if (p.Thumbnail != null)
             {
