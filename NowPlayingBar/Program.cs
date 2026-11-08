@@ -58,6 +58,41 @@ static class Program
 
 // Arranque con Windows (HKCU\...\Run). Activado por defecto la primera vez que se abre;
 // después se respeta lo que elija el usuario (también lo marca el instalador).
+// ---- Idiomas: se usa el de Windows, o el elegido en el menú Idioma ----
+static class L
+{
+    public static readonly (string code, string name)[] Langs = { ("es", "Español"), ("en", "English"), ("de", "Deutsch"), ("pt", "Português (Brasil)"), ("ru", "Русский") };
+    static readonly string File_ = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "NowPlayingBar.lang.txt");
+    public static string Chosen { get { try { var s = File.ReadAllText(File_).Trim(); return s.Length > 0 ? s : null; } catch { return null; } } }
+    public static void Choose(string code) { try { File.WriteAllText(File_, code ?? ""); } catch { } }
+    public static readonly string Code = Resolve();
+    static string Resolve()
+    {
+        var c = Chosen ?? System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
+        return Langs.Any(l => l.code == c) ? c : "en";
+    }
+
+    //                     es                        en                      de                          pt                           ru
+    static readonly System.Collections.Generic.Dictionary<string, string[]> T_ = new()
+    {
+        ["nothing"]  = new[] { "Nada sonando", "Nothing playing", "Keine Wiedergabe", "Nada tocando", "Ничего не играет" },
+        ["screen"]   = new[] { "Pantalla", "Screen", "Bildschirm", "Tela", "Экран" },
+        ["left"]     = new[] { "izquierda", "left", "links", "esquerda", "слева" },
+        ["right"]    = new[] { "derecha", "right", "rechts", "direita", "справа" },
+        ["all"]      = new[] { "Todas las pantallas", "All screens", "Alle Bildschirme", "Todas as telas", "Все экраны" },
+        ["source"]   = new[] { "Fuente", "Source", "Quelle", "Fonte", "Источник" },
+        ["auto"]     = new[] { "Automático", "Automatic", "Automatisch", "Automático", "Автоматически" },
+        ["noplayer"] = new[] { "(ningún reproductor abierto)", "(no player open)", "(kein Player geöffnet)", "(nenhum player aberto)", "(нет открытых плееров)" },
+        ["startup"]  = new[] { "Iniciar con Windows", "Start with Windows", "Mit Windows starten", "Iniciar com o Windows", "Запускать с Windows" },
+        ["reset"]    = new[] { "Restablecer posición", "Reset position", "Position zurücksetzen", "Redefinir posição", "Сбросить положение" },
+        ["lang"]     = new[] { "Idioma", "Language", "Sprache", "Idioma", "Язык" },
+        ["system"]   = new[] { "Idioma de Windows", "Windows language", "Windows-Sprache", "Idioma do Windows", "Язык Windows" },
+        ["exit"]     = new[] { "Salir", "Exit", "Beenden", "Sair", "Выход" },
+        ["unknown"]  = new[] { "Desconocido", "Unknown", "Unbekannt", "Desconhecido", "Неизвестно" },
+    };
+    public static string T(string key) => T_[key][Array.FindIndex(Langs, l => l.code == Code)];
+}
+
 static class Autostart
 {
     const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
@@ -319,7 +354,7 @@ class BarWidget : Form
     readonly string cfg = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "NowPlayingBar.txt");
     MediaManager mgr;
     GlobalSystemMediaTransportControlsSession session;
-    string title = "Nada sonando", artist = "";
+    string title = L.T("nothing"), artist = "";
     Image cover;
     static bool relaunching;
     bool playing;
@@ -395,7 +430,7 @@ class BarWidget : Form
         head.Paint += (_, e) => { e.Graphics.SmoothingMode = SmoothingMode.AntiAlias; DrawLogo(e.Graphics, new RectangleF(Fluent.IconX + (Fluent.IconW - 18) / 2f, (head.Height - 18) / 2f, 18, 18)); };
         menu.Items.Add(head);
         menu.Items.Add(new ToolStripSeparator());
-        var scr = new ToolStripMenuItem("Pantalla") { DropDown = new ToolDropDown() }.Icon("");
+        var scr = new ToolStripMenuItem(L.T("screen")) { DropDown = new ToolDropDown() }.Icon("");
         scr.DropDownItems.Add("-");
         scr.DropDownOpening += (_, _) =>
         {
@@ -404,7 +439,7 @@ class BarWidget : Form
             for (int i = 0; i < bars.Count; i++)
             {
                 int k = i;
-                var it = new ToolStripMenuItem("Pantalla " + (i + 1) + (i == 0 ? " (izquierda)" : i == bars.Count - 1 ? " (derecha)" : ""))
+                var it = new ToolStripMenuItem(L.T("screen") + " " + (i + 1) + (i == 0 ? " (" + L.T("left") + ")" : i == bars.Count - 1 ? " (" + L.T("right") + ")" : ""))
                     { Checked = !Program.AllScreens && bars[i] == taskbar };
                 it.Click += (_, _) =>
                 {
@@ -416,7 +451,7 @@ class BarWidget : Form
             if (bars.Count > 1)
             {
                 scr.DropDownItems.Add(new ToolStripSeparator());
-                var all = new ToolStripMenuItem("Todas las pantallas") { Checked = Program.AllScreens };
+                var all = new ToolStripMenuItem(L.T("all")) { Checked = Program.AllScreens };
                 all.Click += (_, _) => { if (!Program.AllScreens) { Program.AllScreens = true; Save(); Program.Relaunch(); } };
                 scr.DropDownItems.Add(all);
             }
@@ -424,16 +459,16 @@ class BarWidget : Form
         menu.Items.Add(scr);
 
         // Fuente: automático (prioridad) o fijar una app concreta
-        var src = new ToolStripMenuItem("Fuente") { DropDown = new ToolDropDown() }.Icon("");
+        var src = new ToolStripMenuItem(L.T("source")) { DropDown = new ToolDropDown() }.Icon("");
         src.DropDownItems.Add("-");
         src.DropDownOpening += (_, _) =>
         {
             src.DropDownItems.Clear();
-            var auto = new ToolStripMenuItem("Automático") { Checked = pinned == null };
+            var auto = new ToolStripMenuItem(L.T("auto")) { Checked = pinned == null };
             auto.Click += (_, _) => { SetPinned(null); PickSession(); };
             src.DropDownItems.Add(auto);
             var all = mgr?.GetSessions();
-            if (all == null || all.Count == 0) { src.DropDownItems.Add(new ToolStripMenuItem("(ningún reproductor abierto)") { Enabled = false }); return; }
+            if (all == null || all.Count == 0) { src.DropDownItems.Add(new ToolStripMenuItem(L.T("noplayer")) { Enabled = false }); return; }
             src.DropDownItems.Add(new ToolStripSeparator());
             foreach (var x in all)
             {
@@ -444,13 +479,27 @@ class BarWidget : Form
             }
         };
         menu.Items.Add(src);
-        var autoItem = new ToolStripMenuItem("Iniciar con Windows") { Checked = Autostart.Enabled, Tag = Fluent.Toggle }.Icon("");
+        var autoItem = new ToolStripMenuItem(L.T("startup")) { Checked = Autostart.Enabled, Tag = Fluent.Toggle }.Icon("");
         autoItem.Click += (_, _) => { Autostart.Set(!Autostart.Enabled); autoItem.Checked = Autostart.Enabled; };
         menu.Opening += (_, _) => autoItem.Checked = Autostart.Enabled;
         menu.Items.Add(autoItem);
-        menu.Items.Add(new ToolStripMenuItem("Restablecer posición", null, (_, _) => { posX = 220; Place(); Save(); }).Icon(""));
+        // Idioma: el de Windows por defecto, o uno fijo; al cambiarlo se reinicia la app
+        var lang = new ToolStripMenuItem(L.T("lang")) { DropDown = new ToolDropDown() }.Icon("");
+        var chosen = L.Chosen;
+        var sys = new ToolStripMenuItem(L.T("system")) { Checked = chosen == null };
+        sys.Click += (_, _) => { if (L.Chosen != null) { L.Choose(null); Program.Relaunch(); } };
+        lang.DropDownItems.Add(sys);
+        lang.DropDownItems.Add(new ToolStripSeparator());
+        foreach (var (code, name) in L.Langs)
+        {
+            var it = new ToolStripMenuItem(name) { Checked = chosen == code };
+            it.Click += (_, _) => { if (L.Chosen != code) { L.Choose(code); Program.Relaunch(); } };
+            lang.DropDownItems.Add(it);
+        }
+        menu.Items.Add(lang);
+        menu.Items.Add(new ToolStripMenuItem(L.T("reset"), null, (_, _) => { posX = 220; Place(); Save(); }).Icon(""));
         menu.Items.Add(new ToolStripSeparator());
-        menu.Items.Add(new ToolStripMenuItem("Salir", null, (_, _) => Application.Exit()).Icon(""));
+        menu.Items.Add(new ToolStripMenuItem(L.T("exit"), null, (_, _) => Application.Exit()).Icon(""));
         ContextMenuStrip = menu;
         if (owner) tray = new NotifyIcon { Icon = MakeIcon(), Text = "NowPlayingBar", Visible = true, ContextMenuStrip = menu };
 
@@ -572,7 +621,7 @@ class BarWidget : Form
     // Nombre legible a partir del identificador de la app (p. ej. "Music.exe" -> "Music")
     public static string AppName(string id)
     {
-        if (string.IsNullOrEmpty(id)) return "Desconocido";
+        if (string.IsNullOrEmpty(id)) return L.T("unknown");
         var n = id.Split('!')[0];
         n = n.Substring(n.LastIndexOfAny(new[] { '\\', '/' }) + 1);
         if (n.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) n = n[..^4];
@@ -686,7 +735,7 @@ class BarWidget : Form
     void ShowNothing()
     {
         hasPendingClear = false; changing = false; session = null;
-        title = "Nada sonando"; artist = ""; coverPending = false; var old = cover; cover = null; old?.Dispose(); playing = false; Invalidate();
+        title = L.T("nothing"); artist = ""; coverPending = false; var old = cover; cover = null; old?.Dispose(); playing = false; Invalidate();
     }
 
     // ---- Estado "cambiando de canción" ----

@@ -21,6 +21,7 @@ Los binarios los compila GitHub Actions directamente desde este código.
 - Botones ⏮ ⏯ ⏭.
 - Se puede arrastrar para cambiar su posición.
 - Varios monitores: clic derecho → **Pantalla** para elegir una pantalla o **Todas las pantallas**. También se puede arrastrar hasta la barra de otra pantalla.
+- Idiomas: español, English, Deutsch, Português (Brasil) y Русский. Usa el idioma de Windows; se puede cambiar en clic derecho → **Idioma**.
 - Recuerda la posición y la pantalla (`%APPDATA%\NowPlayingBar.txt`).
 - No inyecta código en ningún proceso. Usa solo las APIs públicas de Windows (`GlobalSystemMediaTransportControlsSessionManager`) y una ventana hija de la barra de tareas.
 
