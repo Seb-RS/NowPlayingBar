@@ -250,7 +250,9 @@ static class Fluent
         static void DrawSwitch(Graphics g, ToolStripMenuItem mi)
         {
             g.SmoothingMode = SmoothingMode.AntiAlias;
-            var r = new Rectangle(mi.Width - 52, mi.Height / 2 - 9, 38, 18);
+            // Alinear con el borde visible del menú (el ancho del item puede pasar por debajo del margen)
+            int right = mi.Owner != null ? Math.Min(mi.Width, mi.Owner.DisplayRectangle.Right - mi.Bounds.X) : mi.Width;
+            var r = new Rectangle(right - 38 - 10, mi.Height / 2 - 9, 38, 18);
             using var path = RoundRect(r, 9);
             if (mi.Checked) { using var b = new SolidBrush(Accent); g.FillPath(b, path); }
             else { using var p = new Pen(Dim, 1.2f); g.DrawPath(p, path); }
@@ -319,7 +321,8 @@ class BarWidget : Form
             g.FillPath(bg, path);
         }
         using var w = new SolidBrush(Color.White);
-        float u = s / 32f, x = r.X, y = r.Y;
+        // La nota ocupa x 8..25 e y 6..25 (en una cuadrícula de 32): desplazarla para que su caja quede centrada en 16,16
+        float u = s / 32f, x = r.X - 0.5f * u, y = r.Y + 0.5f * u;
         g.FillEllipse(w, x + 8 * u, y + 19 * u, 7 * u, 6 * u);   // cabeza 1
         g.FillEllipse(w, x + 18 * u, y + 17 * u, 7 * u, 6 * u);  // cabeza 2
         g.FillRectangle(w, x + 13 * u, y + 8 * u, 2 * u, 14 * u); // plica 1
