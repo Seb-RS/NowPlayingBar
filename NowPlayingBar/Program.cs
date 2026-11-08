@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.IO;
@@ -15,7 +15,7 @@ static class Program
     [STAThread]
     static void Main()
     {
-        // Una sola instancia: si ya está abierto (inicio de Windows + abrirlo a mano), no abrir otro.
+        // Una sola instancia: si ya estÃ¡ abierto (inicio de Windows + abrirlo a mano), no abrir otro.
         // Al relanzar (cambio de modo de pantallas) se espera a que la instancia anterior termine.
         single = new System.Threading.Mutex(false, @"Local\NowPlayingBar.Single");
         bool relaunch = Environment.GetCommandLineArgs().Contains("--relaunch");
@@ -23,7 +23,7 @@ static class Program
         catch (System.Threading.AbandonedMutexException) { }
 
         Autostart.EnsureDefault();
-        // Nunca mostrar el diálogo de error de .NET: registrar el fallo y seguir funcionando
+        // Nunca mostrar el diÃ¡logo de error de .NET: registrar el fallo y seguir funcionando
         Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
         Application.ThreadException += (_, e) =>
         {
@@ -57,11 +57,11 @@ static class Program
 }
 
 // Arranque con Windows (HKCU\...\Run). Activado por defecto la primera vez que se abre;
-// después se respeta lo que elija el usuario (también lo marca el instalador).
-// ---- Idiomas: se usa el de Windows, o el elegido en el menú Idioma ----
+// despuÃ©s se respeta lo que elija el usuario (tambiÃ©n lo marca el instalador).
+// ---- Idiomas: se usa el de Windows, o el elegido en el menÃº Idioma ----
 static class L
 {
-    public static readonly (string code, string name)[] Langs = { ("es", "Español"), ("en", "English"), ("de", "Deutsch"), ("pt", "Português (Brasil)"), ("ru", "Русский") };
+    public static readonly (string code, string name)[] Langs = { ("es", "EspaÃ±ol"), ("en", "English"), ("de", "Deutsch"), ("pt", "PortuguÃªs (Brasil)"), ("ru", "Ð ÑƒÑÑÐºÐ¸Ð¹") };
     static readonly string File_ = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "NowPlayingBar.lang.txt");
     public static string Chosen { get { try { var s = File.ReadAllText(File_).Trim(); return s.Length > 0 ? s : null; } catch { return null; } } }
     public static void Choose(string code) { try { File.WriteAllText(File_, code ?? ""); } catch { } }
@@ -75,23 +75,23 @@ static class L
     //                     es                        en                      de                          pt                           ru
     static readonly System.Collections.Generic.Dictionary<string, string[]> T_ = new()
     {
-        ["nothing"]  = new[] { "Nada sonando", "Nothing playing", "Keine Wiedergabe", "Nada tocando", "Ничего не играет" },
-        ["screen"]   = new[] { "Pantalla", "Screen", "Bildschirm", "Tela", "Экран" },
-        ["left"]     = new[] { "izquierda", "left", "links", "esquerda", "слева" },
-        ["right"]    = new[] { "derecha", "right", "rechts", "direita", "справа" },
-        ["all"]      = new[] { "Todas las pantallas", "All screens", "Alle Bildschirme", "Todas as telas", "Все экраны" },
-        ["source"]   = new[] { "Fuente", "Source", "Quelle", "Fonte", "Источник" },
-        ["auto"]     = new[] { "Automático", "Automatic", "Automatisch", "Automático", "Автоматически" },
-        ["noplayer"] = new[] { "(ningún reproductor abierto)", "(no player open)", "(kein Player geöffnet)", "(nenhum player aberto)", "(нет открытых плееров)" },
-        ["startup"]  = new[] { "Iniciar con Windows", "Start with Windows", "Mit Windows starten", "Iniciar com o Windows", "Запускать с Windows" },
-        ["reset"]    = new[] { "Restablecer posición", "Reset position", "Position zurücksetzen", "Redefinir posição", "Сбросить положение" },
-        ["lang"]     = new[] { "Idioma", "Language", "Sprache", "Idioma", "Язык" },
-        ["system"]   = new[] { "Idioma de Windows", "Windows language", "Windows-Sprache", "Idioma do Windows", "Язык Windows" },
-        ["show"]     = new[] { "Mostrar", "Show", "Anzeigen", "Mostrar", "Показывать" },
-        ["onlymusic"]= new[] { "Solo música", "Music only", "Nur Musik", "Só música", "Только музыку" },
-        ["everything"]=new[] { "Todo (música y videos)", "Everything (music and videos)", "Alles (Musik und Videos)", "Tudo (música e vídeos)", "Всё (музыку и видео)" },
-        ["exit"]     =new[] { "Salir", "Exit", "Beenden", "Sair", "Выход" },
-        ["unknown"]  = new[] { "Desconocido", "Unknown", "Unbekannt", "Desconhecido", "Неизвестно" },
+        ["nothing"]  = new[] { "Nada sonando", "Nothing playing", "Keine Wiedergabe", "Nada tocando", "ÐÐ¸Ñ‡ÐµÐ³Ð¾ Ð½Ðµ Ð¸Ð³Ñ€Ð°ÐµÑ‚" },
+        ["screen"]   = new[] { "Pantalla", "Screen", "Bildschirm", "Tela", "Ð­ÐºÑ€Ð°Ð½" },
+        ["left"]     = new[] { "izquierda", "left", "links", "esquerda", "ÑÐ»ÐµÐ²Ð°" },
+        ["right"]    = new[] { "derecha", "right", "rechts", "direita", "ÑÐ¿Ñ€Ð°Ð²Ð°" },
+        ["all"]      = new[] { "Todas las pantallas", "All screens", "Alle Bildschirme", "Todas as telas", "Ð’ÑÐµ ÑÐºÑ€Ð°Ð½Ñ‹" },
+        ["source"]   = new[] { "Fuente", "Source", "Quelle", "Fonte", "Ð˜ÑÑ‚Ð¾Ñ‡Ð½Ð¸Ðº" },
+        ["auto"]     = new[] { "AutomÃ¡tico", "Automatic", "Automatisch", "AutomÃ¡tico", "ÐÐ²Ñ‚Ð¾Ð¼Ð°Ñ‚Ð¸Ñ‡ÐµÑÐºÐ¸" },
+        ["noplayer"] = new[] { "(ningÃºn reproductor abierto)", "(no player open)", "(kein Player geÃ¶ffnet)", "(nenhum player aberto)", "(Ð½ÐµÑ‚ Ð¾Ñ‚ÐºÑ€Ñ‹Ñ‚Ñ‹Ñ… Ð¿Ð»ÐµÐµÑ€Ð¾Ð²)" },
+        ["startup"]  = new[] { "Iniciar con Windows", "Start with Windows", "Mit Windows starten", "Iniciar com o Windows", "Ð—Ð°Ð¿ÑƒÑÐºÐ°Ñ‚ÑŒ Ñ Windows" },
+        ["reset"]    = new[] { "Restablecer posiciÃ³n", "Reset position", "Position zurÃ¼cksetzen", "Redefinir posiÃ§Ã£o", "Ð¡Ð±Ñ€Ð¾ÑÐ¸Ñ‚ÑŒ Ð¿Ð¾Ð»Ð¾Ð¶ÐµÐ½Ð¸Ðµ" },
+        ["lang"]     = new[] { "Idioma", "Language", "Sprache", "Idioma", "Ð¯Ð·Ñ‹Ðº" },
+        ["system"]   = new[] { "Idioma de Windows", "Windows language", "Windows-Sprache", "Idioma do Windows", "Ð¯Ð·Ñ‹Ðº Windows" },
+        ["show"]     = new[] { "Mostrar", "Show", "Anzeigen", "Mostrar", "ÐŸÐ¾ÐºÐ°Ð·Ñ‹Ð²Ð°Ñ‚ÑŒ" },
+        ["onlymusic"]= new[] { "Solo mÃºsica", "Music only", "Nur Musik", "SÃ³ mÃºsica", "Ð¢Ð¾Ð»ÑŒÐºÐ¾ Ð¼ÑƒÐ·Ñ‹ÐºÑƒ" },
+        ["everything"]=new[] { "Todo (mÃºsica y videos)", "Everything (music and videos)", "Alles (Musik und Videos)", "Tudo (mÃºsica e vÃ­deos)", "Ð’ÑÑ‘ (Ð¼ÑƒÐ·Ñ‹ÐºÑƒ Ð¸ Ð²Ð¸Ð´ÐµÐ¾)" },
+        ["exit"]     =new[] { "Salir", "Exit", "Beenden", "Sair", "Ð’Ñ‹Ñ…Ð¾Ð´" },
+        ["unknown"]  = new[] { "Desconocido", "Unknown", "Unbekannt", "Desconhecido", "ÐÐµÐ¸Ð·Ð²ÐµÑÑ‚Ð½Ð¾" },
     };
     public static string T(string key) => T_[key][Array.FindIndex(Langs, l => l.code == Code)];
 }
@@ -127,7 +127,7 @@ static class Autostart
         {
             using var a = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(AppKey);
             if (a?.GetValue("AutostartChosen") == null) { Set(true); return; }
-            // Si está activado pero el programa cambió de carpeta, actualizar la ruta
+            // Si estÃ¡ activado pero el programa cambiÃ³ de carpeta, actualizar la ruta
             using var k = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(RunKey, true);
             var v = k?.GetValue("NowPlayingBar") as string;
             if (v != null && !string.Equals(v, ExePath, StringComparison.OrdinalIgnoreCase)) k.SetValue("NowPlayingBar", ExePath);
@@ -136,7 +136,7 @@ static class Autostart
     }
 }
 
-// Menús con WS_EX_TOOLWINDOW: sin esto, al abrir el menú aparece el icono de la app en la barra de tareas
+// MenÃºs con WS_EX_TOOLWINDOW: sin esto, al abrir el menÃº aparece el icono de la app en la barra de tareas
 class ToolMenu : ContextMenuStrip
 {
     public ToolMenu() { Fluent.Style(this); }
@@ -150,7 +150,7 @@ class ToolDropDown : ToolStripDropDownMenu
     protected override void OnHandleCreated(EventArgs e) { base.OnHandleCreated(e); Fluent.Round(Handle); }
 }
 
-// ---- Menú con estilo Windows 11 oscuro (esquinas redondeadas, iconos Fluent, interruptor) ----
+// ---- MenÃº con estilo Windows 11 oscuro (esquinas redondeadas, iconos Fluent, interruptor) ----
 static class Fluent
 {
     public static readonly Color Bg = Color.FromArgb(44, 44, 44), Hover = Color.FromArgb(61, 61, 61),
@@ -179,7 +179,7 @@ static class Fluent
         m.ItemAdded += (_, e) =>
         {
             if (e.Item is ToolStripSeparator) return;
-            e.Item.Padding = new Padding(0, 6, 18, 6); // margen derecho: el texto empieza en TextX, más a la derecha que el de WinForms
+            e.Item.Padding = new Padding(0, 6, 18, 6); // margen derecho: el texto empieza en TextX, mÃ¡s a la derecha que el de WinForms
             e.Item.ForeColor = Text;
             if (e.Item is not ToolStripMenuItem mi) return;
             Hook(mi);
@@ -187,7 +187,7 @@ static class Fluent
         };
     }
 
-    // Icono Fluent de una opción: se guarda en AccessibleDescription para no chocar con Tag
+    // Icono Fluent de una opciÃ³n: se guarda en AccessibleDescription para no chocar con Tag
     public static T Icon<T>(this T item, string glyph) where T : ToolStripItem { item.AccessibleDescription = glyph; return item; }
 
     class Renderer : ToolStripRenderer
@@ -199,7 +199,7 @@ static class Fluent
         protected override void OnRenderMenuItemBackground(ToolStripItemRenderEventArgs e)
         {
             if (!e.Item.Selected || !e.Item.Enabled) return;
-            var g = e.Graphics; // sin antialias: el color clave (magenta) dejaría bordes rosados
+            var g = e.Graphics; // sin antialias: el color clave (magenta) dejarÃ­a bordes rosados
             var r = new Rectangle(2, 1, e.Item.Width - 4, e.Item.Height - 2);
             using var path = RoundRect(r, 5); using var b = new SolidBrush(Hover); g.FillPath(b, path);
         }
@@ -229,21 +229,21 @@ static class Fluent
         protected override void OnRenderArrow(ToolStripArrowRenderEventArgs e)
         {
             using var f = Icons(8f);
-            TextRenderer.DrawText(e.Graphics, "", f, e.ArrowRectangle, Dim, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+            TextRenderer.DrawText(e.Graphics, "î¬", f, e.ArrowRectangle, Dim, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
         }
 
-        // Icono a la izquierda; si la opción está marcada (y no es interruptor), una marca en color de acento
+        // Icono a la izquierda; si la opciÃ³n estÃ¡ marcada (y no es interruptor), una marca en color de acento
         public void DrawLeft(Graphics g, ToolStripMenuItem mi)
         {
             var box = new Rectangle(IconX, 0, IconW, mi.Height);
             bool toggle = (mi.Tag as string) == Toggle;
             string glyph = mi.AccessibleDescription;
-            if (mi.Checked && !toggle && string.IsNullOrEmpty(glyph)) glyph = "";
+            if (mi.Checked && !toggle && string.IsNullOrEmpty(glyph)) glyph = "îœ¾";
             if (string.IsNullOrEmpty(glyph)) return;
             var col = mi.Checked && !toggle ? Accent : mi.Enabled ? Text : Dim;
             using var f = Icons(10.5f);
             TextRenderer.DrawText(g, glyph, f, box, col, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
-            if (mi.Checked && !toggle && mi.AccessibleDescription != null && mi.AccessibleDescription != "")
+            if (mi.Checked && !toggle && mi.AccessibleDescription != null && mi.AccessibleDescription != "îœ¾")
             {
                 using var dot = new SolidBrush(Accent); g.SmoothingMode = SmoothingMode.AntiAlias;
                 g.FillEllipse(dot, 2, mi.Height / 2 - 2, 4, 4);
@@ -253,7 +253,7 @@ static class Fluent
         static void DrawSwitch(Graphics g, ToolStripMenuItem mi)
         {
             g.SmoothingMode = SmoothingMode.AntiAlias;
-            // Alinear con el borde visible del menú (el ancho del item puede pasar por debajo del margen)
+            // Alinear con el borde visible del menÃº (el ancho del item puede pasar por debajo del margen)
             int right = mi.Owner != null ? Math.Min(mi.Width, mi.Owner.DisplayRectangle.Right - mi.Bounds.X) : mi.Width;
             var r = new Rectangle(right - 38 - 10, mi.Height / 2 - 9, 38, 18);
             using var path = RoundRect(r, 9);
@@ -274,11 +274,11 @@ static class Fluent
         p.CloseFigure(); return p;
     }
 
-    // Se llama desde Paint de cada opción para dibujar icono/marca a la izquierda
+    // Se llama desde Paint de cada opciÃ³n para dibujar icono/marca a la izquierda
     public static void Hook(ToolStripMenuItem mi)
     {
         mi.Paint += (_, e) => ((mi.Owner as ToolStripDropDownMenu)?.Renderer as Renderer)?.DrawLeft(e.Graphics, mi);
-        // Submenú pegado al menú padre (WinForms lo deja separado por el relleno)
+        // SubmenÃº pegado al menÃº padre (WinForms lo deja separado por el relleno)
         mi.DropDown.Opened += (_, _) =>
         {
             if (mi.Owner is not ToolStripDropDown p) return;
@@ -289,7 +289,7 @@ static class Fluent
                 bool right = dr.L >= (pr.L + pr.R) / 2;
                 int x = right ? pr.R + Gap : pr.L - (dr.R - dr.L) - Gap;
                 SetWindowPos(d.Handle, IntPtr.Zero, x, dr.T, 0, 0, 0x0001 | 0x0004 | 0x0010); // NOSIZE | NOZORDER | NOACTIVATE
-                // Flecha que apunta a la opción que abrió el submenú
+                // Flecha que apunta a la opciÃ³n que abriÃ³ el submenÃº
                 var ib = p.RectangleToScreen(mi.Bounds);
                 int cy = Math.Clamp(ib.Top + ib.Height / 2, dr.T + 12, dr.B - 12);
                 Arrow.ShowAt(right, right ? pr.R : pr.L - Gap - 2, cy, d);
@@ -302,36 +302,56 @@ static class Fluent
     [DllImport("user32.dll")] static extern bool GetWindowRect(IntPtr h, out RC r);
     [DllImport("user32.dll")] static extern bool SetWindowPos(IntPtr h, IntPtr after, int x, int y, int cx, int cy, uint flags);
 
-    // Ventanita con forma de triángulo entre menú y submenú, mismo fondo y borde que el menú
+    // Ventanita con forma de triÃ¡ngulo entre menÃº y submenÃº, mismo fondo y borde que el menÃº
     class Arrow : Form
     {
-        static Arrow inst; bool right; ToolStripDropDown owner;
-        const int AW = Gap + 2, AH = 18;
-        Arrow() { FormBorderStyle = FormBorderStyle.None; ShowInTaskbar = false; BackColor = Color.Magenta; TransparencyKey = Color.Magenta; StartPosition = FormStartPosition.Manual; Size = new(AW, AH); }
+        static Arrow inst; ToolStripDropDown owner;
+        const int AW = Gap + 2, AH = 20;
+        Arrow() { FormBorderStyle = FormBorderStyle.None; ShowInTaskbar = false; StartPosition = FormStartPosition.Manual; Size = new(AW, AH); }
         protected override bool ShowWithoutActivation => true;
-        protected override CreateParams CreateParams { get { var cp = base.CreateParams; cp.ExStyle |= 0x80 | 0x08000000 | 0x8 | 0x20; return cp; } } // TOOLWINDOW | NOACTIVATE | TOPMOST | TRANSPARENT (no roba foco ni clics: si no, el menú se cierra)
+        // LAYERED | TOOLWINDOW | NOACTIVATE | TOPMOST | TRANSPARENT: no roba foco ni clics (si no, el menÃº se cierra)
+        protected override CreateParams CreateParams { get { var cp = base.CreateParams; cp.ExStyle |= 0x80000 | 0x80 | 0x08000000 | 0x8 | 0x20; return cp; } }
         public static void ShowAt(bool right, int x, int cy, ToolStripDropDown owner)
         {
             inst ??= new Arrow();
-            inst.right = right; inst.owner = owner;
-            inst.Bounds = new Rectangle(x, cy - AH / 2, AW, AH);
+            inst.owner = owner;
             if (!inst.IsHandleCreated) inst.CreateHandle();
+            inst.Render(right, new Point(x, cy - AH / 2));
             ShowWindow(inst.Handle, 4); // SW_SHOWNOACTIVATE
-            SetWindowPos(inst.Handle, new IntPtr(-1), inst.Left, inst.Top, AW, AH, 0x0010 | 0x0040); // encima del submenú
-            inst.Invalidate();
+            SetWindowPos(inst.Handle, new IntPtr(-1), 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0010); // encima del submenÃº
         }
         public static void HideFor(ToolStripDropDown d) { if (inst != null && inst.owner == d && inst.IsHandleCreated) ShowWindow(inst.Handle, 0); }
-        [DllImport("user32.dll")] static extern bool ShowWindow(IntPtr h, int cmd);
-        protected override void OnPaint(PaintEventArgs e)
+
+        // TriÃ¡ngulo con alfa por pÃ­xel (bordes suaves); la base monta 2 px sobre el submenÃº y tapa su borde
+        void Render(bool right, Point pos)
         {
-            var g = e.Graphics; // sin antialias: el color clave (magenta) dejaría bordes rosados
-            // tip en el lado del menú padre; la base monta 2 px sobre el borde del submenú para taparlo
-            float tip = right ? 0 : AW - 1, b = right ? AW : -1;
-            var pts = new[] { new PointF(b, 0), new PointF(tip, AH / 2f), new PointF(b, AH) };
-            using (var br = new SolidBrush(Bg)) g.FillPolygon(br, pts);
-            using var pen = new Pen(Color.FromArgb(0x40, 0x40, 0x40));
-            g.DrawLine(pen, pts[0], pts[1]); g.DrawLine(pen, pts[1], pts[2]);
+            using var bmp = new Bitmap(AW, AH, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+            using (var g = Graphics.FromImage(bmp))
+            {
+                g.SmoothingMode = SmoothingMode.AntiAlias; g.PixelOffsetMode = PixelOffsetMode.HighQuality;
+                float tip = right ? 0.5f : AW - 0.5f, b = right ? AW + 1 : -1;
+                var pts = new[] { new PointF(b, 0.5f), new PointF(tip, AH / 2f), new PointF(b, AH - 0.5f) };
+                using (var br = new SolidBrush(Bg)) g.FillPolygon(br, pts);
+                using var pen = new Pen(Color.FromArgb(0x40, 0x40, 0x40), 1f);
+                g.DrawLines(pen, pts);
+            }
+            IntPtr screen = GetDC(IntPtr.Zero), mem = CreateCompatibleDC(screen), hb = bmp.GetHbitmap(Color.FromArgb(0)), old = SelectObject(mem, hb);
+            var size = new SZ { cx = AW, cy = AH }; var src = new PT(); var dst = new PT { x = pos.X, y = pos.Y };
+            var blend = new BLEND { op = 0, flags = 0, alpha = 255, fmt = 1 }; // AC_SRC_ALPHA
+            UpdateLayeredWindow(Handle, screen, ref dst, ref size, mem, ref src, 0, ref blend, 2); // ULW_ALPHA
+            SelectObject(mem, old); DeleteObject(hb); DeleteDC(mem); ReleaseDC(IntPtr.Zero, screen);
         }
+        struct PT { public int x, y; }
+        struct SZ { public int cx, cy; }
+        [StructLayout(LayoutKind.Sequential, Pack = 1)] struct BLEND { public byte op, flags, alpha, fmt; }
+        [DllImport("user32.dll")] static extern bool UpdateLayeredWindow(IntPtr h, IntPtr dst, ref PT pos, ref SZ size, IntPtr src, ref PT srcPos, int key, ref BLEND b, int flags);
+        [DllImport("user32.dll")] static extern IntPtr GetDC(IntPtr h);
+        [DllImport("user32.dll")] static extern int ReleaseDC(IntPtr h, IntPtr dc);
+        [DllImport("gdi32.dll")] static extern IntPtr CreateCompatibleDC(IntPtr dc);
+        [DllImport("gdi32.dll")] static extern bool DeleteDC(IntPtr dc);
+        [DllImport("gdi32.dll")] static extern IntPtr SelectObject(IntPtr dc, IntPtr o);
+        [DllImport("gdi32.dll")] static extern bool DeleteObject(IntPtr o);
+        [DllImport("user32.dll")] static extern bool ShowWindow(IntPtr h, int cmd);
     }
 }
 
@@ -343,7 +363,7 @@ class BarWidget : Form
     [DllImport("gdi32.dll")] static extern uint GetPixel(IntPtr dc, int x, int y);
     [DllImport("user32.dll")] static extern bool DestroyIcon(IntPtr h);
 
-    // Copia el color de la barra tomando un píxel justo encima del widget
+    // Copia el color de la barra tomando un pÃ­xel justo encima del widget
     struct POINT { public int X, Y; }
     [DllImport("user32.dll")] static extern IntPtr WindowFromPoint(POINT p);
     [DllImport("user32.dll")] static extern IntPtr GetAncestor(IntPtr h, uint flags);
@@ -351,11 +371,11 @@ class BarWidget : Form
     void MatchBarColor()
     {
         if (taskbar == IntPtr.Zero || !GetWindowRect(taskbar, out var r)) return;
-        // Horizontal: píxel encima del widget. Vertical: píxel a su izquierda.
+        // Horizontal: pÃ­xel encima del widget. Vertical: pÃ­xel a su izquierda.
         int px, py;
         if (vertical) { if (lastPos.X < 3) return; px = r.L + lastPos.X / 2; py = r.T + lastPos.Y + H / 2; }
         else { if (lastPos.Y < 3) return; px = r.L + lastPos.X + W / 2; py = r.T + lastPos.Y / 2; }
-        // Si una ventana o menú tapa ese punto, no copiar su color (solo leer cuando ahí está la barra)
+        // Si una ventana o menÃº tapa ese punto, no copiar su color (solo leer cuando ahÃ­ estÃ¡ la barra)
         if (GetAncestor(WindowFromPoint(new POINT { X = px, Y = py }), 2) != taskbar) return;
         var dc = GetDC(IntPtr.Zero);
         uint c = GetPixel(dc, px, py);
@@ -381,7 +401,7 @@ class BarWidget : Form
             g.FillPath(bg, path);
         }
         using var w = new SolidBrush(Color.White);
-        // La nota ocupa x 8..25 e y 6..25 (en una cuadrícula de 32): desplazarla para que su caja quede centrada en 16,16
+        // La nota ocupa x 8..25 e y 6..25 (en una cuadrÃ­cula de 32): desplazarla para que su caja quede centrada en 16,16
         float u = s / 32f, x = r.X - 0.5f * u, y = r.Y + 0.5f * u;
         g.FillEllipse(w, x + 8 * u, y + 19 * u, 7 * u, 6 * u);   // cabeza 1
         g.FillEllipse(w, x + 18 * u, y + 17 * u, 7 * u, 6 * u);  // cabeza 2
@@ -452,7 +472,7 @@ class BarWidget : Form
     bool vertical;
     int vw = 48;
     int W => vertical ? vw : 300;
-    const int TextH = 30; // en vertical: dos líneas de texto con desplazamiento (título y artista)
+    const int TextH = 30; // en vertical: dos lÃ­neas de texto con desplazamiento (tÃ­tulo y artista)
     int H => vertical ? vw + TextH + 3 * 30 + 4 : 40;
     Rectangle Art => vertical ? new(4, 4, vw - 8, vw - 8) : new(6, 5, 30, 30);
     Rectangle TextArea => new(2, vw - 2, vw - 4, TextH);
@@ -496,7 +516,7 @@ class BarWidget : Form
         head.Paint += (_, e) => { e.Graphics.SmoothingMode = SmoothingMode.AntiAlias; DrawLogo(e.Graphics, new RectangleF(Fluent.IconX + (Fluent.IconW - 18) / 2f, (head.Height - 18) / 2f, 18, 18)); };
         menu.Items.Add(head);
         menu.Items.Add(new ToolStripSeparator());
-        var scr = new ToolStripMenuItem(L.T("screen")) { DropDown = new ToolDropDown() }.Icon("");
+        var scr = new ToolStripMenuItem(L.T("screen")) { DropDown = new ToolDropDown() }.Icon("îŸ´");
         scr.DropDownItems.Add("-");
         scr.DropDownOpening += (_, _) =>
         {
@@ -524,8 +544,8 @@ class BarWidget : Form
         };
         menu.Items.Add(scr);
 
-        // Fuente: automático (prioridad) o fijar una app concreta
-        var src = new ToolStripMenuItem(L.T("source")) { DropDown = new ToolDropDown() }.Icon("");
+        // Fuente: automÃ¡tico (prioridad) o fijar una app concreta
+        var src = new ToolStripMenuItem(L.T("source")) { DropDown = new ToolDropDown() }.Icon("î£–");
         src.DropDownItems.Add("-");
         src.DropDownOpening += (_, _) =>
         {
@@ -539,14 +559,14 @@ class BarWidget : Form
             foreach (var x in all)
             {
                 var id = x.SourceAppUserModelId;
-                var it = new ToolStripMenuItem(AppName(id) + (IsPlaying(x) ? "  ▶" : "")) { Checked = pinned == id };
+                var it = new ToolStripMenuItem(AppName(id) + (IsPlaying(x) ? "  â–¶" : "")) { Checked = pinned == id };
                 it.Click += (_, _) => { SetPinned(id); PickSession(); };
                 src.DropDownItems.Add(it);
             }
         };
         menu.Items.Add(src);
-        // Mostrar: todo o solo música
-        var show = new ToolStripMenuItem(L.T("show")) { DropDown = new ToolDropDown() }.Icon("");
+        // Mostrar: todo o solo mÃºsica
+        var show = new ToolStripMenuItem(L.T("show")) { DropDown = new ToolDropDown() }.Icon("îœœ");
         var showAll = new ToolStripMenuItem(L.T("everything"));
         var showMusic = new ToolStripMenuItem(L.T("onlymusic"));
         showAll.Click += (_, _) => { SetOnlyMusic(false); PickSession(); };
@@ -554,12 +574,12 @@ class BarWidget : Form
         show.DropDownItems.Add(showAll); show.DropDownItems.Add(showMusic);
         show.DropDownOpening += (_, _) => { showAll.Checked = !OnlyMusic; showMusic.Checked = OnlyMusic; };
         menu.Items.Add(show);
-        var autoItem = new ToolStripMenuItem(L.T("startup")) { Checked = Autostart.Enabled, Tag = Fluent.Toggle }.Icon("");
+        var autoItem = new ToolStripMenuItem(L.T("startup")) { Checked = Autostart.Enabled, Tag = Fluent.Toggle }.Icon("îŸ¨");
         autoItem.Click += (_, _) => { Autostart.Set(!Autostart.Enabled); autoItem.Checked = Autostart.Enabled; };
         menu.Opening += (_, _) => autoItem.Checked = Autostart.Enabled;
         menu.Items.Add(autoItem);
         // Idioma: el de Windows por defecto, o uno fijo; al cambiarlo se reinicia la app
-        var lang = new ToolStripMenuItem(L.T("lang")) { DropDown = new ToolDropDown() }.Icon("");
+        var lang = new ToolStripMenuItem(L.T("lang")) { DropDown = new ToolDropDown() }.Icon("î´");
         var chosen = L.Chosen;
         var sys = new ToolStripMenuItem(L.T("system")) { Checked = chosen == null };
         sys.Click += (_, _) => { if (L.Chosen != null) { L.Choose(null); Program.Relaunch(); } };
@@ -572,13 +592,13 @@ class BarWidget : Form
             lang.DropDownItems.Add(it);
         }
         menu.Items.Add(lang);
-        menu.Items.Add(new ToolStripMenuItem(L.T("reset"), null, (_, _) => { posX = 220; Place(); Save(); }).Icon(""));
+        menu.Items.Add(new ToolStripMenuItem(L.T("reset"), null, (_, _) => { posX = 220; Place(); Save(); }).Icon("îœ¬"));
         menu.Items.Add(new ToolStripSeparator());
-        menu.Items.Add(new ToolStripMenuItem(L.T("exit"), null, (_, _) => Application.Exit()).Icon(""));
+        menu.Items.Add(new ToolStripMenuItem(L.T("exit"), null, (_, _) => Application.Exit()).Icon("îœ‘"));
         ContextMenuStrip = menu;
         if (owner) tray = new NotifyIcon { Icon = MakeIcon(), Text = "NowPlayingBar", Visible = true, ContextMenuStrip = menu };
 
-        // Re-incrustar si explorer.exe se reinicia o cambia el tamaño de la barra
+        // Re-incrustar si explorer.exe se reinicia o cambia el tamaÃ±o de la barra
         watch.Tick += (_, _) => { if (!IsWindow(taskbar) || GetParent(Handle) != taskbar || (GetWindowLong(Handle, -20) & 0x80000) == 0) Embed(); else Place(); MatchBarColor(); PickSession();
             // Modo "Todas las pantallas": si se conecta o desconecta un monitor, rehacer los widgets
             if (owner && Program.AllScreens && !relaunching) { int n = Taskbars().Count; if (n > 0 && n != Program.Instances) { relaunching = true; Program.Relaunch(); } }
@@ -637,7 +657,7 @@ class BarWidget : Form
 
     [DllImport("user32.dll")] static extern bool SetLayeredWindowAttributes(IntPtr h, uint key, byte alpha, uint flags);
 
-    // Mantener por encima de las demás ventanas hijas de la barra
+    // Mantener por encima de las demÃ¡s ventanas hijas de la barra
     void RaiseNow() { SetWindowPos(Handle, IntPtr.Zero, 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0010); Invalidate(); }
 
     // La barra se reordena varias veces tras un clic: reafirmar durante ~600 ms
@@ -674,12 +694,12 @@ class BarWidget : Form
     }
 
     // ---- Prioridad entre reproductores ----
-    // 1. Si el usuario fijó una app (menú Fuente) y está abierta, se usa esa.
-    // 2. Si no, una app que esté reproduciendo gana a una en pausa.
+    // 1. Si el usuario fijÃ³ una app (menÃº Fuente) y estÃ¡ abierta, se usa esa.
+    // 2. Si no, una app que estÃ© reproduciendo gana a una en pausa.
     // 3. Si la actual sigue reproduciendo, no se cambia (evita saltos).
-    // 4. Entre varias reproduciendo, la que empezó a sonar más recientemente.
+    // 4. Entre varias reproduciendo, la que empezÃ³ a sonar mÃ¡s recientemente.
     // 5. Si nada suena, la que Windows marca como actual.
-    // Mostrar: "Todo" (por defecto) o "Solo música"
+    // Mostrar: "Todo" (por defecto) o "Solo mÃºsica"
     static readonly string FilterCfg = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "NowPlayingBar.filter.txt");
     static bool OnlyMusic = ReadFilter();
     static bool ReadFilter() { try { return File.ReadAllText(FilterCfg).Trim() == "music"; } catch { return false; } }
@@ -691,7 +711,7 @@ class BarWidget : Form
     static void SetPinned(string id) { pinned = id; try { File.WriteAllText(SourceCfg, id ?? ""); } catch { } }
 
     readonly System.Collections.Generic.Dictionary<string, DateTime> playStart = new();
-    // Sesión enganchada por app: si la app se cierra y se vuelve a abrir, la sesión es otra y hay que engancharla de nuevo
+    // SesiÃ³n enganchada por app: si la app se cierra y se vuelve a abrir, la sesiÃ³n es otra y hay que engancharla de nuevo
     readonly System.Collections.Generic.Dictionary<string, GlobalSystemMediaTransportControlsSession> hooked = new();
 
     static bool IsPlaying(GlobalSystemMediaTransportControlsSession s)
@@ -711,17 +731,17 @@ class BarWidget : Form
         return n.Length > 0 ? char.ToUpper(n[0]) + n[1..] : id;
     }
 
-    // ---- ¿Música o video? ----
-    // Apps de música conocidas: siempre música. Navegadores: música solo si la página informa un álbum
-    // (YouTube Music, Deezer…); un video de YouTube o una película no lo tiene.
+    // ---- Â¿MÃºsica o video? ----
+    // Apps de mÃºsica conocidas: siempre mÃºsica. Navegadores: mÃºsica solo si la pÃ¡gina informa un Ã¡lbum
+    // (YouTube Music, Deezerâ€¦); un video de YouTube o una pelÃ­cula no lo tiene.
     static readonly string[] Browsers = { "chrome", "msedge", "brave", "firefox", "opera", "vivaldi", "arc", "zen", "floorp", "librewolf", "thorium", "yandex" };
     static readonly string[] VideoApps = { "vlc", "mpc-hc", "mpc-be", "potplayer", "mpv", "netflix", "disney", "primevideo", "stremio", "kodi", "plex", "jellyfin", "video.ui", "zunevideo", "media player" };
-    // Mensajería: notas de voz y llamadas también usan los controles de medios; nunca se muestran
+    // MensajerÃ­a: notas de voz y llamadas tambiÃ©n usan los controles de medios; nunca se muestran
     static readonly string[] IgnoredApps = { "whatsapp", "telegram", "discord", "teams", "slack", "signal", "messenger", "skype", "zoom", "phonelink", "yourphone" };
     static bool IsIgnored(GlobalSystemMediaTransportControlsSession s) { try { var l = (s.SourceAppUserModelId ?? "").ToLowerInvariant(); return IgnoredApps.Any(a => l.Contains(a)); } catch { return true; } }
-    readonly System.Collections.Generic.Dictionary<string, bool> musicInfo = new(); // id -> la página/canción actual es música
+    readonly System.Collections.Generic.Dictionary<string, bool> musicInfo = new(); // id -> la pÃ¡gina/canciÃ³n actual es mÃºsica
     readonly System.Collections.Generic.Dictionary<string, DateTime> lastMusicAt = new();
-    readonly System.Collections.Generic.Dictionary<string, DateTime> stopAt = new(); // id -> cuándo dejó de sonar (cambio de canción)
+    readonly System.Collections.Generic.Dictionary<string, DateTime> stopAt = new(); // id -> cuÃ¡ndo dejÃ³ de sonar (cambio de canciÃ³n)
 
     static bool IsBrowser(string id) { var l = (id ?? "").ToLowerInvariant(); return Browsers.Any(b => l.Contains(b)); }
 
@@ -733,7 +753,7 @@ class BarWidget : Form
         return !IsBrowser(id) && !VideoApps.Any(v => l.Contains(v));
     }
 
-    // ¿Lo que suena en el navegador es una canción? El navegador no lo dice: se combinan varias pistas.
+    // Â¿Lo que suena en el navegador es una canciÃ³n? El navegador no lo dice: se combinan varias pistas.
     static readonly System.Text.RegularExpressions.Regex SongTitle = new(
         @"official\s*(music\s*)?(video|audio|visualizer)|\b(lyrics?|letra|audio|videoclip|remix|ft\.|feat\.)\b|\(\s*(slowed|sped up|reverb)",
         System.Text.RegularExpressions.RegexOptions.IgnoreCase);
@@ -742,20 +762,20 @@ class BarWidget : Form
     {
         string title = p.Title ?? "", artist = p.Artist ?? "", album = p.AlbumTitle ?? "";
         if (title.Trim().Length == 0) return false;
-        // 1. Muy largo (película, directo, podcast): video
+        // 1. Muy largo (pelÃ­cula, directo, podcast): video
         try { var tl = s.GetTimelineProperties(); if (tl != null && (tl.EndTime - tl.StartTime).TotalMinutes > 12) return false; } catch { }
-        // 2. Trae álbum (YouTube Music, Deezer…): canción
+        // 2. Trae Ã¡lbum (YouTube Music, Deezerâ€¦): canciÃ³n
         if (album.Trim().Length > 0) return true;
-        // 3. La pestaña activa es YouTube Music: canción
+        // 3. La pestaÃ±a activa es YouTube Music: canciÃ³n
         var win = BrowserTabTitle(title);
         if (win != null && win.Contains("YouTube Music", StringComparison.OrdinalIgnoreCase)) return true;
-        // 4. Canales de música de YouTube ("Artista - Topic", "...VEVO") o título con formato de canción
+        // 4. Canales de mÃºsica de YouTube ("Artista - Topic", "...VEVO") o tÃ­tulo con formato de canciÃ³n
         if (artist.EndsWith(" - Topic", StringComparison.OrdinalIgnoreCase) || artist.Contains("VEVO", StringComparison.OrdinalIgnoreCase)) return true;
         if (SongTitle.IsMatch(title)) return true;
         if (artist.Length > 0 && title.StartsWith(artist + " - ", StringComparison.OrdinalIgnoreCase)) return true;
-        // 5. Sin autor (película, video suelto): video
+        // 5. Sin autor (pelÃ­cula, video suelto): video
         if (artist.Trim().Length == 0) return false;
-        // 6. Pestaña de YouTube normal, o miniatura apaisada (16:9) en vez de portada cuadrada: video
+        // 6. PestaÃ±a de YouTube normal, o miniatura apaisada (16:9) en vez de portada cuadrada: video
         if (win != null && win.Contains("- YouTube", StringComparison.OrdinalIgnoreCase)) return false;
         try
         {
@@ -767,10 +787,10 @@ class BarWidget : Form
             }
         }
         catch { }
-        return true; // trae artista y nada indica lo contrario (SoundCloud, Bandcamp…)
+        return true; // trae artista y nada indica lo contrario (SoundCloud, Bandcampâ€¦)
     }
 
-    // Título de la ventana del navegador cuya pestaña activa contiene ese título (o null si no está a la vista)
+    // TÃ­tulo de la ventana del navegador cuya pestaÃ±a activa contiene ese tÃ­tulo (o null si no estÃ¡ a la vista)
     static string BrowserTabTitle(string title)
     {
         string found = null;
@@ -788,13 +808,13 @@ class BarWidget : Form
     [DllImport("user32.dll")] static extern bool IsWindowVisible(IntPtr h);
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int GetWindowText(IntPtr h, System.Text.StringBuilder s, int n);
 
-    // Apps que ya mandaron una canción con álbum: nunca se tratan como notas de voz
+    // Apps que ya mandaron una canciÃ³n con Ã¡lbum: nunca se tratan como notas de voz
     static readonly System.Collections.Generic.HashSet<string> trustedApps = new();
     static readonly System.Text.RegularExpressions.Regex GenericAudio = new(
-        @"^(audio|voice( message| note)?|mensaje de voz|nota de voz|sprachnachricht|mensagem de voz|голосовое( сообщение)?|ptt[-_ ].*|.*\.(opus|ogg|m4a|aac|amr|wav|mp3))$",
+        @"^(audio|voice( message| note)?|mensaje de voz|nota de voz|sprachnachricht|mensagem de voz|Ð³Ð¾Ð»Ð¾ÑÐ¾Ð²Ð¾Ðµ( ÑÐ¾Ð¾Ð±Ñ‰ÐµÐ½Ð¸Ðµ)?|ptt[-_ ].*|.*\.(opus|ogg|m4a|aac|amr|wav|mp3))$",
         System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
-    // Puntuación de "audio pelado" (nota de voz, aviso, sonido de una app): 4 o más puntos = no es música
+    // PuntuaciÃ³n de "audio pelado" (nota de voz, aviso, sonido de una app): 4 o mÃ¡s puntos = no es mÃºsica
     static bool LooksLikeVoiceNote(GlobalSystemMediaTransportControlsSession s, GlobalSystemMediaTransportControlsSessionMediaProperties p, string id)
     {
         string title = (p.Title ?? "").Trim(), artist = (p.Artist ?? "").Trim(), album = (p.AlbumTitle ?? "").Trim();
@@ -814,13 +834,13 @@ class BarWidget : Form
         try
         {
             var p = await s.TryGetMediaPropertiesAsync();
-            if (string.IsNullOrWhiteSpace(p?.Title) && musicInfo.ContainsKey(id)) return; // datos a medias durante el cambio de canción
+            if (string.IsNullOrWhiteSpace(p?.Title) && musicInfo.ContainsKey(id)) return; // datos a medias durante el cambio de canciÃ³n
             var l = id.ToLowerInvariant();
             bool music;
             if (p.PlaybackType == Windows.Media.MediaPlaybackType.Video) music = false;
             else if (IsBrowser(id)) music = await BrowserIsMusic(s, p);
             else music = !VideoApps.Any(v => l.Contains(v)) && !LooksLikeVoiceNote(s, p, id);
-            // Navegador con varias pestañas: si hace poco sonaba música, un video de paso no lo saca del modo "Solo música"
+            // Navegador con varias pestaÃ±as: si hace poco sonaba mÃºsica, un video de paso no lo saca del modo "Solo mÃºsica"
             if (music) lastMusicAt[id] = DateTime.Now;
             else if (IsBrowser(id) && lastMusicAt.TryGetValue(id, out var lm) && (DateTime.Now - lm).TotalSeconds < 15) music = true;
             bool changed = !musicInfo.TryGetValue(id, out var old) || old != music;
@@ -870,7 +890,7 @@ class BarWidget : Form
         HookAll(all);
 
         GlobalSystemMediaTransportControlsSession s = null;
-        // Fuente fija: manda mientras suena; si se detiene más de 3 s (cambio de canción incluido), pasa a la selección automática
+        // Fuente fija: manda mientras suena; si se detiene mÃ¡s de 3 s (cambio de canciÃ³n incluido), pasa a la selecciÃ³n automÃ¡tica
         if (pinned != null)
         {
             s = all.FirstOrDefault(x => x.SourceAppUserModelId == pinned);
@@ -882,14 +902,14 @@ class BarWidget : Form
         }
         if (s == null)
         {
-            // Modo "Solo música": los videos y películas se ignoran por completo
+            // Modo "Solo mÃºsica": los videos y pelÃ­culas se ignoran por completo
             var cands = OnlyMusic ? all.Where(IsMusic).ToList() : all.ToList();
             var cur = mgr.GetCurrentSession();
             if (cur != null && (IsIgnored(cur) || (OnlyMusic && !IsMusic(cur)))) cur = null;
             var playingNow = cands.Where(IsPlaying).ToList();
-            // La música tiene prioridad: si suena música, los videos (películas en el navegador, etc.) no la tapan
+            // La mÃºsica tiene prioridad: si suena mÃºsica, los videos (pelÃ­culas en el navegador, etc.) no la tapan
             if (playingNow.Any(IsMusic)) playingNow = playingNow.Where(IsMusic).ToList();
-            // Cambio de canción: la app actual se detiene un instante; no saltar a otra mientras tanto
+            // Cambio de canciÃ³n: la app actual se detiene un instante; no saltar a otra mientras tanto
             var keep = session == null ? null : cands.FirstOrDefault(x => x.SourceAppUserModelId == session.SourceAppUserModelId);
             if (keep != null && !IsPlaying(keep) && stopAt.TryGetValue(keep.SourceAppUserModelId, out var st) && (DateTime.Now - st).TotalSeconds < 3) { playingNow = new() { keep }; System.Threading.Tasks.Task.Delay(3100).ContinueWith(_ => BeginInvoke(PickSession)); }
             s = playingNow.FirstOrDefault(x => session != null && x.SourceAppUserModelId == session.SourceAppUserModelId)
@@ -901,12 +921,12 @@ class BarWidget : Form
 
         if (s == null && session != null && !hasPendingClear)
         {
-            // El reproductor puede desaparecer un instante al cambiar de canción: esperar antes de mostrar "Nada sonando"
+            // El reproductor puede desaparecer un instante al cambiar de canciÃ³n: esperar antes de mostrar "Nada sonando"
             hasPendingClear = true; pendingClearAt = DateTime.Now; BeginChange(false);
             return;
         }
         if (s == null && hasPendingClear) return; // seguimos esperando
-        if (hasPendingClear) { hasPendingClear = false; session = s; _ = UpdateMedia(); UpdatePlayback(); return; } // volvió
+        if (hasPendingClear) { hasPendingClear = false; session = s; _ = UpdateMedia(); UpdatePlayback(); return; } // volviÃ³
         hasPendingClear = false;
         if (s?.SourceAppUserModelId == session?.SourceAppUserModelId && (s == null) == (session == null)) { session = s; return; }
         session = s;
@@ -934,7 +954,7 @@ class BarWidget : Form
             fadeTimer.Tick += (_, _) =>
             {
                 double k = Math.Min(1, (DateTime.Now - fadeStart).TotalMilliseconds / FadeMs);
-                double e = 1 - Math.Pow(1 - k, 3); // ease-out cúbica
+                double e = 1 - Math.Pow(1 - k, 3); // ease-out cÃºbica
                 alpha = (byte)Math.Round(fadeFrom + (fadeTo - fadeFrom) * e);
                 ApplyAlpha();
                 if (k >= 1) { fadeTimer.Stop(); if (idle) { ShowWindow(Handle, 0); ClearContent(); } }
@@ -948,8 +968,8 @@ class BarWidget : Form
     {
         dimOut = changing || coverPending; // si ya estaba atenuada, se desvanece atenuada
         hasPendingClear = false; changing = false; session = null;
-        SetIdle(true); // no suena nada: la barra se oculta hasta que aparezca una canción
-        // Se mantiene la última canción mientras se desvanece; el contenido se limpia ya oculta
+        SetIdle(true); // no suena nada: la barra se oculta hasta que aparezca una canciÃ³n
+        // Se mantiene la Ãºltima canciÃ³n mientras se desvanece; el contenido se limpia ya oculta
         coverPending = false; Invalidate();
         if (!IsHandleCreated || fadeTimer?.Enabled != true) ClearContent();
     }
@@ -959,9 +979,9 @@ class BarWidget : Form
         title = L.T("nothing"); artist = ""; var old = cover; cover = null; old?.Dispose(); playing = false; Invalidate();
     }
 
-    // ---- Estado "cambiando de canción" ----
-    // Al pulsar anterior/siguiente (o si el reproductor desaparece un momento) se mantiene la canción
-    // anterior atenuada hasta que llegan los datos de la nueva, con un máximo de espera.
+    // ---- Estado "cambiando de canciÃ³n" ----
+    // Al pulsar anterior/siguiente (o si el reproductor desaparece un momento) se mantiene la canciÃ³n
+    // anterior atenuada hasta que llegan los datos de la nueva, con un mÃ¡ximo de espera.
     bool changing, hasPendingClear, changeFromSkip, dimOut;
     DateTime changeStart, pendingClearAt;
     string titleAtChange;
@@ -976,16 +996,16 @@ class BarWidget : Form
     {
         if (hasPendingClear && (DateTime.Now - pendingClearAt).TotalSeconds > 3)
         {
-            // Siguió sin haber reproductor: ahora sí, "Nada sonando"
+            // SiguiÃ³ sin haber reproductor: ahora sÃ­, "Nada sonando"
             var all = mgr?.GetSessions();
-            ShowNothing(); if (all != null && all.Count > 0) PickSession(); // oculta, y vuelve si hay otra canción
+            ShowNothing(); if (all != null && all.Count > 0) PickSession(); // oculta, y vuelve si hay otra canciÃ³n
         }
         if (coverPending)
         {
             var w = (DateTime.Now - coverPendingAt).TotalSeconds;
             if (w > 1)
             {
-                // Tardó demasiado (o no tiene portada): mostrar la canción nueva con el icono del reproductor
+                // TardÃ³ demasiado (o no tiene portada): mostrar la canciÃ³n nueva con el icono del reproductor
                 coverPending = false; title = pendTitle; artist = pendArtist; coverHash = null;
                 var old = cover; cover = null; old?.Dispose(); Invalidate();
             }
@@ -993,7 +1013,7 @@ class BarWidget : Form
         }
         if (changing && !hasPendingClear && (DateTime.Now - changeStart).TotalSeconds > 2.5)
         {
-            changing = false; // no llegó nada distinto (p. ej. "anterior" reinició la misma canción)
+            changing = false; // no llegÃ³ nada distinto (p. ej. "anterior" reiniciÃ³ la misma canciÃ³n)
             _ = UpdateMedia();
         }
     }
@@ -1007,7 +1027,7 @@ class BarWidget : Form
 
     void UpdatePlayback()
     {
-        // GetPlaybackInfo() devuelve null si el reproductor se está cerrando o cambiando de pista
+        // GetPlaybackInfo() devuelve null si el reproductor se estÃ¡ cerrando o cambiando de pista
         try { playing = session?.GetPlaybackInfo()?.PlaybackStatus == GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing; } catch { playing = false; }
         Invalidate();
     }
@@ -1019,12 +1039,12 @@ class BarWidget : Form
         try
         {
             var p = await s.TryGetMediaPropertiesAsync();
-            // El navegador usa una sola sesión para todas sus pestañas: en "Solo música", si pasa a un video, se queda la última canción
+            // El navegador usa una sola sesiÃ³n para todas sus pestaÃ±as: en "Solo mÃºsica", si pasa a un video, se queda la Ãºltima canciÃ³n
             if (OnlyMusic && IsBrowser(s.SourceAppUserModelId) && title != L.T("nothing")
                 && (p.PlaybackType == Windows.Media.MediaPlaybackType.Video || !await BrowserIsMusic(s, p)))
             {
                 changing = false; coverPending = false; Invalidate();
-                // Si a los 3 s sigue en el video (se cerró la pestaña de música), la canción terminó: soltar el navegador
+                // Si a los 3 s sigue en el video (se cerrÃ³ la pestaÃ±a de mÃºsica), la canciÃ³n terminÃ³: soltar el navegador
                 var vid = s.SourceAppUserModelId; var vt = p.Title;
                 _ = Task.Delay(3000).ContinueWith(_ => BeginInvoke(async () =>
                 {
@@ -1048,11 +1068,11 @@ class BarWidget : Form
                     hash = Convert.ToBase64String(System.Security.Cryptography.SHA1.HashData(ms.ToArray()));
                     ms.Position = 0; img = Image.FromStream(ms);
                 }
-                catch { img = null; hash = null; } // portada aún no disponible
+                catch { img = null; hash = null; } // portada aÃºn no disponible
             }
-            // Si mientras cargaba se cambió de reproductor, descartar este resultado
+            // Si mientras cargaba se cambiÃ³ de reproductor, descartar este resultado
             if (session == null || s.SourceAppUserModelId != session.SourceAppUserModelId) { img?.Dispose(); return; }
-            // Datos vacíos o todavía de la canción anterior: es un estado intermedio, mantener lo que se ve (atenuado)
+            // Datos vacÃ­os o todavÃ­a de la canciÃ³n anterior: es un estado intermedio, mantener lo que se ve (atenuado)
             if (string.IsNullOrEmpty(p.Title))
             {
                 img?.Dispose();
@@ -1062,12 +1082,12 @@ class BarWidget : Form
             if (changing && changeFromSkip && p.Title == titleAtChange && (DateTime.Now - changeStart).TotalSeconds < 2.5) { img?.Dispose(); return; }
             changing = false;
             bool newSong = p.Title != title || (p.Artist ?? "") != artist;
-            // Algunos reproductores mandan el título nuevo con la portada anterior: tratarla como no cargada
+            // Algunos reproductores mandan el tÃ­tulo nuevo con la portada anterior: tratarla como no cargada
             if (img != null && (newSong || coverPending) && hash != null && hash == coverHash) { img.Dispose(); img = null; }
             if (img == null && cover != null && (newSong || coverPending))
             {
-                // La portada nueva suele llegar un instante después que el título:
-                // seguir mostrando la canción anterior atenuada (texto y portada) hasta 1 s
+                // La portada nueva suele llegar un instante despuÃ©s que el tÃ­tulo:
+                // seguir mostrando la canciÃ³n anterior atenuada (texto y portada) hasta 1 s
                 pendTitle = p.Title; pendArtist = p.Artist ?? "";
                 if (!coverPending) { coverPending = true; coverPendingAt = DateTime.Now; }
             }
@@ -1091,7 +1111,7 @@ class BarWidget : Form
         {
             if (changing || coverPending || dimOut)
             {
-                // Portada atenuada mientras cambia de canción
+                // Portada atenuada mientras cambia de canciÃ³n
                 using var ia = new System.Drawing.Imaging.ImageAttributes();
                 ia.SetColorMatrix(new System.Drawing.Imaging.ColorMatrix { Matrix33 = 0.35f });
                 g.DrawImage(cover, art, 0, 0, cover.Width, cover.Height, GraphicsUnit.Pixel, ia);
@@ -1102,8 +1122,8 @@ class BarWidget : Form
         var titleCol = changing || coverPending || dimOut ? Color.FromArgb(120, 120, 120) : Color.White;
         var artistCol = changing || coverPending || dimOut ? Color.FromArgb(90, 90, 90) : Color.FromArgb(170, 170, 170);
 
-        // Texto: en vertical no cabe, se muestra al pasar el ratón
-        var t = string.IsNullOrEmpty(artist) ? title : title + " — " + artist;
+        // Texto: en vertical no cabe, se muestra al pasar el ratÃ³n
+        var t = string.IsNullOrEmpty(artist) ? title : title + " â€” " + artist;
         if (t != tipText) { tipText = t; tip.SetToolTip(this, vertical ? t : null); }
         if (vertical)
         {
@@ -1133,7 +1153,7 @@ class BarWidget : Form
         }
     }
 
-    // Línea de progreso bajo el texto (horizontal) o bajo la marquesina (vertical), extrapolada entre actualizaciones
+    // LÃ­nea de progreso bajo el texto (horizontal) o bajo la marquesina (vertical), extrapolada entre actualizaciones
     Rectangle ProgressArea => vertical ? new(6, vw + TextH - 4, vw - 12, 2) : new(Art.Right + 8, H - 4, W - 96 - Art.Right - 12, 2);
     void DrawProgress(Graphics g)
     {
@@ -1188,7 +1208,7 @@ class BarWidget : Form
             return;
         }
         int d = i == 0 ? -1 : 1;
-        cx -= d; // el icono (triángulo + barra) ocupa 10 px asimétricos: compensar 1 px para que quede centrado
+        cx -= d; // el icono (triÃ¡ngulo + barra) ocupa 10 px asimÃ©tricos: compensar 1 px para que quede centrado
         g.FillPolygon(w, new[] { new PointF(cx - 4 * d, cy - 6), new PointF(cx + 4 * d, cy), new PointF(cx - 4 * d, cy + 6) });
         g.FillRectangle(w, d > 0 ? cx + 4 : cx - 6, cy - 6, 2, 12);
     }
