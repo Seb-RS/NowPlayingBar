@@ -856,7 +856,7 @@ class BarWidget : Form
                 double e = 1 - Math.Pow(1 - k, 3); // ease-out cúbica
                 alpha = (byte)Math.Round(fadeFrom + (fadeTo - fadeFrom) * e);
                 ApplyAlpha();
-                if (k >= 1) { fadeTimer.Stop(); if (idle) ShowWindow(Handle, 0); }
+                if (k >= 1) { fadeTimer.Stop(); if (idle) { ShowWindow(Handle, 0); ClearContent(); } }
             };
         }
         fadeTimer.Start();
@@ -867,7 +867,13 @@ class BarWidget : Form
     {
         hasPendingClear = false; changing = false; session = null;
         SetIdle(true); // no suena nada: la barra se oculta hasta que aparezca una canción
-        title = L.T("nothing"); artist = ""; coverPending = false; var old = cover; cover = null; old?.Dispose(); playing = false; Invalidate();
+        // Se mantiene la última canción mientras se desvanece; el contenido se limpia ya oculta
+        coverPending = false; Invalidate();
+        if (!IsHandleCreated || fadeTimer?.Enabled != true) ClearContent();
+    }
+    void ClearContent()
+    {
+        title = L.T("nothing"); artist = ""; var old = cover; cover = null; old?.Dispose(); playing = false; Invalidate();
     }
 
     // ---- Estado "cambiando de canción" ----
