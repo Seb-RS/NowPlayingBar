@@ -863,7 +863,7 @@ class BarWidget : Form
         {
             // Siguió sin haber reproductor: ahora sí, "Nada sonando"
             var all = mgr?.GetSessions();
-            if (all == null || all.Count == 0) ShowNothing(); else { hasPendingClear = false; session = null; PickSession(); }
+            ShowNothing(); if (all != null && all.Count > 0) PickSession(); // oculta, y vuelve si hay otra canción
         }
         if (coverPending)
         {
@@ -906,7 +906,23 @@ class BarWidget : Form
             var p = await s.TryGetMediaPropertiesAsync();
             // El navegador usa una sola sesión para todas sus pestañas: en "Solo música", si pasa a un video, se queda la última canción
             if (OnlyMusic && IsBrowser(s.SourceAppUserModelId) && title != L.T("nothing")
-                && (p.PlaybackType == Windows.Media.MediaPlaybackType.Video || !await BrowserIsMusic(s, p))) { changing = false; coverPending = false; Invalidate(); return; }
+                && (p.PlaybackType == Windows.Media.MediaPlaybackType.Video || !await BrowserIsMusic(s, p)))
+            {
+                changing = false; coverPending = false; Invalidate();
+                // Si a los 3 s sigue en el video (se cerró la pestaña de música), la canción terminó: soltar el navegador
+                var vid = s.SourceAppUserModelId; var vt = p.Title;
+                _ = Task.Delay(3000).ContinueWith(_ => BeginInvoke(async () =>
+                {
+                    try
+                    {
+                        var q = await s.TryGetMediaPropertiesAsync();
+                        if (q.Title != vt || session?.SourceAppUserModelId != vid) return;
+                        musicInfo[vid] = false; lastMusicAt.Remove(vid); PickSession();
+                    }
+                    catch { }
+                }));
+                return;
+            }
             Image img = null; string hash = null;
             if (p.Thumbnail != null)
             {
