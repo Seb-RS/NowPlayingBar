@@ -52,6 +52,8 @@ Type: files; Name: "{userdesktop}\NowPlayingBar.lnk"
 
 [Registry]
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueName: "NowPlayingBar"; Flags: deletevalue dontcreatekey
+; Recordar que el usuario ya eligió en el instalador, para que la app no lo cambie al abrirse
+Root: HKCU; Subkey: "Software\NowPlayingBar"; ValueType: dword; ValueName: "AutostartChosen"; ValueData: 1; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "NowPlayingBar"; ValueData: """{app}\NowPlayingBar.exe"""; Flags: uninsdeletevalue; Tasks: startup
 
 [Run]

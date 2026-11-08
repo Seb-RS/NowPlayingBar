@@ -22,6 +22,7 @@ static class Program
         try { if (!single.WaitOne(relaunch ? 10000 : 0)) return; }
         catch (System.Threading.AbandonedMutexException) { }
 
+        Autostart.EnsureDefault();
         Application.EnableVisualStyles();
         Application.SetCompatibleTextRenderingDefault(false);
         var (_, screen) = BarWidget.LoadCfg();
@@ -46,6 +47,49 @@ static class Program
     {
         try { System.Diagnostics.Process.Start(Environment.ProcessPath, "--relaunch"); } catch { }
         Application.Exit();
+    }
+}
+
+// Arranque con Windows (HKCU\...\Run). Activado por defecto la primera vez que se abre;
+// después se respeta lo que elija el usuario (también lo marca el instalador).
+static class Autostart
+{
+    const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
+    const string AppKey = @"Software\NowPlayingBar";
+    static string ExePath => "\"" + Environment.ProcessPath + "\"";
+
+    public static bool Enabled
+    {
+        get { using var k = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(RunKey); return k?.GetValue("NowPlayingBar") != null; }
+    }
+
+    public static void Set(bool on)
+    {
+        try
+        {
+            using (var k = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(RunKey))
+            {
+                if (on) k.SetValue("NowPlayingBar", ExePath); else k.DeleteValue("NowPlayingBar", false);
+                k.DeleteValue("NowPlayingBar", false); // nombre antiguo del proyecto
+            }
+            using var a = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(AppKey);
+            a.SetValue("AutostartChosen", 1);
+        }
+        catch { }
+    }
+
+    public static void EnsureDefault()
+    {
+        try
+        {
+            using var a = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(AppKey);
+            if (a?.GetValue("AutostartChosen") == null) { Set(true); return; }
+            // Si está activado pero el programa cambió de carpeta, actualizar la ruta
+            using var k = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(RunKey, true);
+            var v = k?.GetValue("NowPlayingBar") as string;
+            if (v != null && !string.Equals(v, ExePath, StringComparison.OrdinalIgnoreCase)) k.SetValue("NowPlayingBar", ExePath);
+        }
+        catch { }
     }
 }
 
@@ -259,6 +303,10 @@ class BarWidget : Form
             }
         };
         menu.Items.Add(src);
+        var autoItem = new ToolStripMenuItem("Iniciar con Windows") { Checked = Autostart.Enabled };
+        autoItem.Click += (_, _) => { Autostart.Set(!Autostart.Enabled); autoItem.Checked = Autostart.Enabled; };
+        menu.Opening += (_, _) => autoItem.Checked = Autostart.Enabled;
+        menu.Items.Add(autoItem);
         menu.Items.Add("Restablecer posición", null, (_, _) => { posX = 220; Place(); Save(); });
         menu.Items.Add("Salir", null, (_, _) => Application.Exit());
         ContextMenuStrip = menu;
