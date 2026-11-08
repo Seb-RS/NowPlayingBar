@@ -31,7 +31,7 @@
 
   <Applications>
     <Application Id="App" Executable="NowPlayingWidget.exe" EntryPoint="Windows.FullTrustApplication">
-      <uap:VisualElements DisplayName="Now Playing Widget" Description="Canción actual de Music con controles"
+      <uap:VisualElements DisplayName="Now Playing Widget" Description="Lo que suena ahora, con controles"
         BackgroundColor="transparent" Square150x150Logo="Assets\Logo150.png" Square44x44Logo="Assets\Logo44.png"
         AppListEntry="none" />
       <Extensions>
@@ -53,7 +53,7 @@
                   <CreateInstance ClassId="6C1E5B7A-3F2D-4A8E-9B1C-5D7E2F4A9C31" />
                 </Activation>
                 <Definitions>
-                  <Definition Id="NowPlaying" DisplayName="Music" Description="Canción actual y controles de reproducción"
+                  <Definition Id="NowPlaying" DisplayName="Now Playing" Description="Canción actual y controles de reproducción"
                     AllowMultiple="false" IsCustomizable="false">
                     <Capabilities>
                       <Capability><Size Name="small" /></Capability>
@@ -64,7 +64,7 @@
                         <Icon Path="Assets\Logo150.png" />
                       </Icons>
                       <Screenshots>
-                        <Screenshot Path="Assets\Shot.png" DisplayAltText="Widget de Music" />
+                        <Screenshot Path="Assets\Shot.png" DisplayAltText="Widget Now Playing" />
                       </Screenshots>
                       <DarkMode />
                       <LightMode />

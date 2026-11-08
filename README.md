@@ -3,12 +3,24 @@
 
 Incluye además un widget para el panel de Widgets de Windows (Win + W).
 
+## Descarga e instalación
+
+1. Ve a [Releases](https://github.com/Seb-RS/NowPlayingBar/releases) y descarga **`NowPlayingBar-Setup-x.y.z.exe`**.
+2. Ábrelo y sigue los pasos. No necesita permisos de administrador ni instalar .NET.
+3. Si Windows muestra "Windows protegió su PC", pulsa **Más información → Ejecutar de todas formas**. Aparece porque el instalador todavía no está firmado.
+
+Para desinstalarlo: Configuración → Aplicaciones → NowPlayingBar → Desinstalar.
+
+Si tenías la versión anterior (NowPlayingBar), el instalador la reemplaza automáticamente.
+
+Los binarios los compila GitHub Actions directamente desde este código.
+
 ## NowPlayingBar (barra de tareas)
 
 - Portada, título y artista dentro de la barra de tareas.
 - Botones ⏮ ⏯ ⏭.
 - Se puede arrastrar para cambiar su posición.
-- Varios monitores: clic derecho → **Pantalla**, o arrástralo hasta la barra de otra pantalla.
+- Varios monitores: clic derecho → **Pantalla** para elegir una pantalla o **Todas las pantallas**. También se puede arrastrar hasta la barra de otra pantalla.
 - Recuerda la posición y la pantalla (`%APPDATA%\NowPlayingBar.txt`).
 - No inyecta código en ningún proceso. Usa solo las APIs públicas de Windows (`GlobalSystemMediaTransportControlsSessionManager`) y una ventana hija de la barra de tareas.
 
@@ -20,8 +32,6 @@ Requiere el [SDK de .NET 9](https://dotnet.microsoft.com/download).
 cd NowPlayingBar
 dotnet publish -c Release -o out
 ```
-
-Ejecuta `out\NowPlayingBar.exe`. Para que arranque con Windows, crea un acceso directo en `shell:startup`.
 
 ## NowPlayingWidget (panel de Widgets)
 
@@ -37,16 +47,7 @@ dotnet publish -c Release -r win-x64 -o out
 Add-AppxPackage -Register out\AppxManifest.xml
 ```
 
-
-## Descarga e instalación
-
-1. Ve a [Releases](https://github.com/Seb-RS/NowPlayingBar/releases) y descarga **`NowPlayingBar-Setup-x.y.z.exe`**.
-2. Ábrelo y sigue los pasos. No necesita permisos de administrador ni instalar .NET.
-3. Si Windows muestra "Windows protegió su PC", pulsa **Más información → Ejecutar de todas formas**. Aparece porque el instalador todavía no está firmado.
-
-Para desinstalarlo: Configuración → Aplicaciones → NowPlayingBar → Desinstalar.
-
-Los binarios los compila GitHub Actions directamente desde este código.
+Después abre el panel de Widgets (Win + W) → **+** → **Now Playing**.
 
 ## Code signing policy
 
@@ -61,6 +62,9 @@ Only binaries built by GitHub Actions from this repository are signed.
 This program will not transfer any information to other networked systems unless specifically requested by the user or the person installing or operating it.
 
 NowPlayingBar only reads the media information that Windows exposes locally (title, artist, cover art) and sends play/pause/skip commands to the local media session.
+
+## Marcas
+
 
 ## Licencia
 

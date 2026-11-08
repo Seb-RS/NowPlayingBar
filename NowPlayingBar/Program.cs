@@ -59,19 +59,34 @@ class BarWidget : Form
         if (col != BackColor) BackColor = col;
     }
 
+    // Logo propio: cuadrado redondeado violeta con una nota musical blanca
+    public static void DrawLogo(Graphics g, RectangleF r)
+    {
+        g.SmoothingMode = SmoothingMode.AntiAlias;
+        float s = r.Width, rad = s * 0.28f;
+        using (var path = new GraphicsPath())
+        {
+            path.AddArc(r.X, r.Y, rad, rad, 180, 90);
+            path.AddArc(r.Right - rad, r.Y, rad, rad, 270, 90);
+            path.AddArc(r.Right - rad, r.Bottom - rad, rad, rad, 0, 90);
+            path.AddArc(r.X, r.Bottom - rad, rad, rad, 90, 90);
+            path.CloseFigure();
+            using var bg = new LinearGradientBrush(r, Color.FromArgb(124, 92, 255), Color.FromArgb(72, 52, 212), 45f);
+            g.FillPath(bg, path);
+        }
+        using var w = new SolidBrush(Color.White);
+        float u = s / 32f, x = r.X, y = r.Y;
+        g.FillEllipse(w, x + 8 * u, y + 19 * u, 7 * u, 6 * u);   // cabeza 1
+        g.FillEllipse(w, x + 18 * u, y + 17 * u, 7 * u, 6 * u);  // cabeza 2
+        g.FillRectangle(w, x + 13 * u, y + 8 * u, 2 * u, 14 * u); // plica 1
+        g.FillRectangle(w, x + 23 * u, y + 6 * u, 2 * u, 14 * u); // plica 2
+        g.FillPolygon(w, new[] { new PointF(x + 13 * u, y + 8 * u), new PointF(x + 25 * u, y + 6 * u), new PointF(x + 25 * u, y + 9.5f * u), new PointF(x + 13 * u, y + 11.5f * u) });
+    }
+
     static Icon MakeIcon()
     {
         using var bmp = new Bitmap(32, 32);
-        using (var g = Graphics.FromImage(bmp))
-        {
-            g.SmoothingMode = SmoothingMode.AntiAlias;
-            using var green = new SolidBrush(Color.FromArgb(30, 215, 96));
-            g.FillEllipse(green, 1, 1, 30, 30);
-            using var pen = new Pen(Color.FromArgb(20, 20, 20), 3f) { StartCap = LineCap.Round, EndCap = LineCap.Round };
-            g.DrawArc(pen, 8, 9, 16, 10, 200, 140);
-            g.DrawArc(pen, 9.5f, 13.5f, 13, 8, 205, 130);
-            g.DrawArc(pen, 11, 18, 10, 6, 210, 120);
-        }
+        using (var g = Graphics.FromImage(bmp)) DrawLogo(g, new RectangleF(0, 0, 32, 32));
         var h = bmp.GetHicon();
         var ico = (Icon)Icon.FromHandle(h).Clone();
         DestroyIcon(h);
@@ -91,14 +106,16 @@ class BarWidget : Form
 
     public static (int posX, int screen) LoadCfg()
     {
+        try { if (!File.Exists(Cfg) && File.Exists(OldCfg)) File.Copy(OldCfg, Cfg); } catch { }
         try { var p = File.ReadAllText(Cfg).Split(','); return (int.Parse(p[0]), p.Length > 1 ? int.Parse(p[1]) : 0); }
         catch { return (220, 0); }
     }
     static readonly string Cfg = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "NowPlayingBar.txt");
+    static readonly string OldCfg = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "NowPlayingBar.txt");
     readonly string cfg = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "NowPlayingBar.txt");
     MediaManager mgr;
     GlobalSystemMediaTransportControlsSession session;
-    string title = "Music", artist = "Sin reproducción";
+    string title = "Nada sonando", artist = "";
     Image cover;
     bool playing;
     int hover = -1; // 0 anterior, 1 play/pausa, 2 siguiente
@@ -258,15 +275,16 @@ class BarWidget : Form
     {
         mgr = await MediaManager.RequestAsync();
         mgr.SessionsChanged += (_, _) => BeginInvoke(PickSession);
+        mgr.CurrentSessionChanged += (_, _) => BeginInvoke(PickSession);
         PickSession();
     }
 
     void PickSession()
     {
-        var s = mgr.GetSessions().FirstOrDefault(x => x.SourceAppUserModelId.Contains("Music", StringComparison.OrdinalIgnoreCase));
+        var s = mgr.GetCurrentSession() ?? mgr.GetSessions().FirstOrDefault(); // cualquier reproductor
         if (s == session) return;
         session = s;
-        if (s == null) { title = "Music"; artist = "No está abierto"; cover = null; playing = false; Invalidate(); return; }
+        if (s == null) { title = "Nada sonando"; artist = ""; cover = null; playing = false; Invalidate(); return; }
         s.MediaPropertiesChanged += (x, _) => { if (x == session) BeginInvoke(() => { UpdateMedia(); }); };
         s.PlaybackInfoChanged += (x, _) => { if (x == session) BeginInvoke(UpdatePlayback); };
         _ = UpdateMedia(); UpdatePlayback();
@@ -283,7 +301,7 @@ class BarWidget : Form
         try
         {
             var p = await session.TryGetMediaPropertiesAsync();
-            title = string.IsNullOrEmpty(p.Title) ? "Music" : p.Title;
+            title = string.IsNullOrEmpty(p.Title) ? "Sin título" : p.Title;
             artist = p.Artist ?? "";
             cover = null;
             if (p.Thumbnail != null)
@@ -303,7 +321,7 @@ class BarWidget : Form
         g.SmoothingMode = SmoothingMode.AntiAlias;
         var art = new Rectangle(6, 5, H - 10, H - 10);
         if (cover != null) g.DrawImage(cover, art);
-        else using (var br = new SolidBrush(Color.FromArgb(30, 215, 96))) g.FillEllipse(br, art);
+        else DrawLogo(g, art);
 
         int tx = art.Right + 8, tw = W - 96 - tx - 4;
         var fmt = TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix | TextFormatFlags.SingleLine;

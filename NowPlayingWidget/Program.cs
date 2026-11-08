@@ -66,7 +66,7 @@ class Provider : IWidgetProvider
     readonly string template = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Template.json"));
     MediaManager mgr;
     GlobalSystemMediaTransportControlsSession session;
-    string title = "Music", artist = "No está abierto", cover = "", lastJson = "";
+    string title = "Nada sonando", artist = "", cover = "", lastJson = "";
     bool playing;
 
     public Provider()
@@ -80,15 +80,16 @@ class Provider : IWidgetProvider
     {
         mgr = await MediaManager.RequestAsync();
         mgr.SessionsChanged += (_, _) => PickSession();
+        mgr.CurrentSessionChanged += (_, _) => PickSession();
         PickSession();
     }
 
     void PickSession()
     {
-        var s = mgr.GetSessions().FirstOrDefault(x => x.SourceAppUserModelId.Contains("Music", StringComparison.OrdinalIgnoreCase));
+        var s = mgr.GetCurrentSession() ?? mgr.GetSessions().FirstOrDefault(); // cualquier reproductor
         if (s == session && s != null) return;
         session = s;
-        if (s == null) { title = "Music"; artist = "No está abierto"; cover = ""; playing = false; PushAll(); return; }
+        if (s == null) { title = "Nada sonando"; artist = ""; cover = ""; playing = false; PushAll(); return; }
         s.MediaPropertiesChanged += (x, _) => { if (x == session) { var t = LoadMedia(); } };
         s.PlaybackInfoChanged += (x, _) => { if (x == session) { ReadPlayback(); PushAll(); } };
         ReadPlayback();
@@ -103,7 +104,7 @@ class Provider : IWidgetProvider
         try
         {
             var p = await session.TryGetMediaPropertiesAsync();
-            title = string.IsNullOrEmpty(p.Title) ? "Music" : p.Title;
+            title = string.IsNullOrEmpty(p.Title) ? "Sin título" : p.Title;
             artist = p.Artist ?? "";
             cover = "";
             if (p.Thumbnail != null)
