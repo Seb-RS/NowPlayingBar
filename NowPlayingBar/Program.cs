@@ -318,7 +318,7 @@ class BarWidget : Form
             if (owner && Program.AllScreens && !relaunching) { int n = Taskbars().Count; if (n > 0 && n != Program.Instances) { relaunching = true; Program.Relaunch(); } }
         };
         watch.Start();
-        marquee.Tick += (_, _) => { if (vertical) { scroll++; Invalidate(TextArea); } };
+        marquee.Tick += (_, _) => { ChangeTick(); if (vertical) { scroll++; Invalidate(TextArea); } };
         marquee.Start();
         _ = InitAsync();
     }
@@ -485,10 +485,53 @@ class BarWidget : Form
                 ?? all.FirstOrDefault();
         }
 
+        if (s == null && session != null && !hasPendingClear)
+        {
+            // El reproductor puede desaparecer un instante al cambiar de canción: esperar antes de mostrar "Nada sonando"
+            hasPendingClear = true; pendingClearAt = DateTime.Now; BeginChange(false);
+            return;
+        }
+        if (s == null && hasPendingClear) return; // seguimos esperando
+        if (hasPendingClear) { hasPendingClear = false; session = s; _ = UpdateMedia(); UpdatePlayback(); return; } // volvió
+        hasPendingClear = false;
         if (s?.SourceAppUserModelId == session?.SourceAppUserModelId && (s == null) == (session == null)) { session = s; return; }
         session = s;
-        if (s == null) { title = "Nada sonando"; artist = ""; var old = cover; cover = null; old?.Dispose(); playing = false; Invalidate(); return; }
+        if (s == null) { ShowNothing(); return; }
         _ = UpdateMedia(); UpdatePlayback();
+    }
+
+    void ShowNothing()
+    {
+        hasPendingClear = false; changing = false; session = null;
+        title = "Nada sonando"; artist = ""; var old = cover; cover = null; old?.Dispose(); playing = false; Invalidate();
+    }
+
+    // ---- Estado "cambiando de canción" ----
+    // Al pulsar anterior/siguiente (o si el reproductor desaparece un momento) se mantiene la canción
+    // anterior atenuada hasta que llegan los datos de la nueva, con un máximo de espera.
+    bool changing, hasPendingClear, changeFromSkip;
+    DateTime changeStart, pendingClearAt;
+    string titleAtChange;
+
+    void BeginChange(bool fromSkip)
+    {
+        changing = true; changeFromSkip = fromSkip; changeStart = DateTime.Now; titleAtChange = title;
+        Invalidate();
+    }
+
+    void ChangeTick()
+    {
+        if (hasPendingClear && (DateTime.Now - pendingClearAt).TotalSeconds > 3)
+        {
+            // Siguió sin haber reproductor: ahora sí, "Nada sonando"
+            var all = mgr?.GetSessions();
+            if (all == null || all.Count == 0) ShowNothing(); else { hasPendingClear = false; session = null; PickSession(); }
+        }
+        if (changing && !hasPendingClear && (DateTime.Now - changeStart).TotalSeconds > 2.5)
+        {
+            changing = false; // no llegó nada distinto (p. ej. "anterior" reinició la misma canción)
+            _ = UpdateMedia();
+        }
     }
 
     void UpdatePlayback()
@@ -513,7 +556,16 @@ class BarWidget : Form
             }
             // Si mientras cargaba se cambió de reproductor, descartar este resultado
             if (session == null || s.SourceAppUserModelId != session.SourceAppUserModelId) { img?.Dispose(); return; }
-            title = string.IsNullOrEmpty(p.Title) ? "Sin título" : p.Title;
+            // Datos vacíos o todavía de la canción anterior: es un estado intermedio, mantener lo que se ve (atenuado)
+            if (string.IsNullOrEmpty(p.Title))
+            {
+                img?.Dispose();
+                if (!changing) BeginChange(false);
+                return;
+            }
+            if (changing && changeFromSkip && p.Title == titleAtChange && (DateTime.Now - changeStart).TotalSeconds < 2.5) { img?.Dispose(); return; }
+            changing = false;
+            title = p.Title;
             artist = p.Artist ?? "";
             var old = cover; cover = img; old?.Dispose(); // liberar la portada anterior
         }
@@ -526,8 +578,20 @@ class BarWidget : Form
         var g = e.Graphics;
         g.SmoothingMode = SmoothingMode.AntiAlias;
         var art = Art;
-        if (cover != null) g.DrawImage(cover, art);
+        if (cover != null)
+        {
+            if (changing)
+            {
+                // Portada atenuada mientras cambia de canción
+                using var ia = new System.Drawing.Imaging.ImageAttributes();
+                ia.SetColorMatrix(new System.Drawing.Imaging.ColorMatrix { Matrix33 = 0.35f });
+                g.DrawImage(cover, art, 0, 0, cover.Width, cover.Height, GraphicsUnit.Pixel, ia);
+            }
+            else g.DrawImage(cover, art);
+        }
         else DrawLogo(g, art);
+        var titleCol = changing ? Color.FromArgb(120, 120, 120) : Color.White;
+        var artistCol = changing ? Color.FromArgb(90, 90, 90) : Color.FromArgb(170, 170, 170);
 
         // Texto: en vertical no cabe, se muestra al pasar el ratón
         var t = string.IsNullOrEmpty(artist) ? title : title + " — " + artist;
@@ -538,16 +602,16 @@ class BarWidget : Form
             var ta = TextArea;
             using var small = new Font("Segoe UI", 7.5f);
             using var smallBold = new Font("Segoe UI", 7.5f, FontStyle.Bold);
-            DrawScrolling(g, title, smallBold, Color.White, new Rectangle(ta.X, ta.Y, ta.Width, 15));
-            DrawScrolling(g, artist, small, Color.FromArgb(170, 170, 170), new Rectangle(ta.X, ta.Y + 14, ta.Width, 15));
+            DrawScrolling(g, title, smallBold, titleCol, new Rectangle(ta.X, ta.Y, ta.Width, 15));
+            DrawScrolling(g, artist, small, artistCol, new Rectangle(ta.X, ta.Y + 14, ta.Width, 15));
         }
         else
         {
             int tx = art.Right + 8, tw = W - 96 - tx - 4;
             var fmt = TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix | TextFormatFlags.SingleLine;
             using (var bold = new Font(Font, FontStyle.Bold))
-                TextRenderer.DrawText(g, title, bold, new Rectangle(tx, 3, tw, 18), Color.White, fmt);
-            TextRenderer.DrawText(g, artist, Font, new Rectangle(tx, 20, tw, 17), Color.FromArgb(170, 170, 170), fmt);
+                TextRenderer.DrawText(g, title, bold, new Rectangle(tx, 3, tw, 18), titleCol, fmt);
+            TextRenderer.DrawText(g, artist, Font, new Rectangle(tx, 20, tw, 17), artistCol, fmt);
         }
 
         for (int i = 0; i < 3; i++)
@@ -634,9 +698,9 @@ class BarWidget : Form
         int h = HitBtn(e.Location);
         try
         {
-            if (h == 0) await session.TrySkipPreviousAsync();
+            if (h == 0) { BeginChange(true); await session.TrySkipPreviousAsync(); }
             else if (h == 1) await session.TryTogglePlayPauseAsync();
-            else if (h == 2) await session.TrySkipNextAsync();
+            else if (h == 2) { BeginChange(true); await session.TrySkipNextAsync(); }
         }
         catch { }
     }
