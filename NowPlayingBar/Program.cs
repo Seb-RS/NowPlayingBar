@@ -283,10 +283,17 @@ static class Fluent
         {
             if (mi.Owner is not ToolStripDropDown p) return;
             var d = mi.DropDown;
-            if (d.Left >= p.Left + p.Width / 2) d.Left = p.Right - 1;
-            else d.Left = p.Left - d.Width + 1;
+            d.BeginInvoke(() =>
+            {
+                if (!GetWindowRect(p.Handle, out var pr) || !GetWindowRect(d.Handle, out var dr)) return;
+                int x = dr.L >= (pr.L + pr.R) / 2 ? pr.R - 2 : pr.L - (dr.R - dr.L) + 2;
+                SetWindowPos(d.Handle, IntPtr.Zero, x, dr.T, 0, 0, 0x0001 | 0x0004 | 0x0010); // NOSIZE | NOZORDER | NOACTIVATE
+            });
         };
     }
+    struct RC { public int L, T, R, B; }
+    [DllImport("user32.dll")] static extern bool GetWindowRect(IntPtr h, out RC r);
+    [DllImport("user32.dll")] static extern bool SetWindowPos(IntPtr h, IntPtr after, int x, int y, int cx, int cy, uint flags);
 }
 
 class BarWidget : Form
