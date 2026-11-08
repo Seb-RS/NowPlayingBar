@@ -179,7 +179,7 @@ static class Fluent
         m.ItemAdded += (_, e) =>
         {
             if (e.Item is ToolStripSeparator) return;
-            e.Item.Padding = new Padding(0, 3, 18, 3); // margen derecho: el texto empieza en TextX, más a la derecha que el de WinForms
+            e.Item.Padding = new Padding(0, 6, 18, 6); // margen derecho: el texto empieza en TextX, más a la derecha que el de WinForms
             e.Item.ForeColor = Text;
             if (e.Item is not ToolStripMenuItem mi) return;
             Hook(mi);
@@ -275,7 +275,18 @@ static class Fluent
     }
 
     // Se llama desde Paint de cada opción para dibujar icono/marca a la izquierda
-    public static void Hook(ToolStripMenuItem mi) => mi.Paint += (_, e) => ((mi.Owner as ToolStripDropDownMenu)?.Renderer as Renderer)?.DrawLeft(e.Graphics, mi);
+    public static void Hook(ToolStripMenuItem mi)
+    {
+        mi.Paint += (_, e) => ((mi.Owner as ToolStripDropDownMenu)?.Renderer as Renderer)?.DrawLeft(e.Graphics, mi);
+        // Submenú pegado al menú padre (WinForms lo deja separado por el relleno)
+        mi.DropDown.Opened += (_, _) =>
+        {
+            if (mi.Owner is not ToolStripDropDown p) return;
+            var d = mi.DropDown;
+            if (d.Left >= p.Left + p.Width / 2) d.Left = p.Right - 1;
+            else d.Left = p.Left - d.Width + 1;
+        };
+    }
 }
 
 class BarWidget : Form
