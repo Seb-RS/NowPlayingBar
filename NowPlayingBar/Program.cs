@@ -1343,10 +1343,10 @@ static class YouTube
         {
             var html = await http.GetStringAsync("https://www.youtube.com/results?search_query=" + Uri.EscapeDataString(title + " " + channel));
             string id = null;
-            foreach (System.Text.RegularExpressions.Match m in System.Text.RegularExpressions.Regex.Matches(html, "\"videoRenderer\":\{\"videoId\":\"([\w-]{11})\""))
+            foreach (System.Text.RegularExpressions.Match m in System.Text.RegularExpressions.Regex.Matches(html, @"""videoRenderer"":\{""videoId"":""([\w-]{11})"""))
             {
                 int end = Math.Min(html.Length, m.Index + 8000);
-                var own = System.Text.RegularExpressions.Regex.Match(html.Substring(m.Index, end - m.Index), "\"ownerText\":\{\"runs\":\[\{\"text\":\"((?:[^\"\\]|\\.)*)\"");
+                var own = System.Text.RegularExpressions.Regex.Match(html.Substring(m.Index, end - m.Index), @"""ownerText"":\{""runs"":\[\{""text"":""((?:[^""\\]|\\.)*)""");
                 if (own.Success && Same(Unescape(own.Groups[1].Value), channel)) { id = m.Groups[1].Value; break; }
                 if (m.Index > 400000) break;
             }
