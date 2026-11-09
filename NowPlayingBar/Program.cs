@@ -901,6 +901,7 @@ class BarWidget : Form
         if (pinned != null)
         {
             s = all.FirstOrDefault(x => x.SourceAppUserModelId == pinned);
+            if (s != null && OnlyMusic && !IsMusic(s)) s = null; // "Solo música" también filtra la fuente fija
             if (s != null && !IsPlaying(s))
             {
                 var since = stopAt.TryGetValue(pinned, out var ps) ? (DateTime.Now - ps).TotalSeconds : 99;
