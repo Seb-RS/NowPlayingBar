@@ -688,6 +688,7 @@ class BarWidget : Form
     async Task InitAsync()
     {
         mgr = await MediaManager.RequestAsync();
+        YouTube.Learned += () => BeginInvoke(() => { try { foreach (var x in mgr.GetSessions()) if (IsBrowser(x.SourceAppUserModelId)) ClassifyAsync(x, x.SourceAppUserModelId); } catch { } });
         mgr.SessionsChanged += (_, _) => BeginInvoke(PickSession);
         mgr.CurrentSessionChanged += (_, _) => BeginInvoke(PickSession);
         PickSession();
@@ -769,6 +770,12 @@ class BarWidget : Form
         // 3. La pestaña activa es YouTube Music: canción
         var win = BrowserTabTitle(title);
         if (win != null && win.Contains("YouTube Music", StringComparison.OrdinalIgnoreCase)) return true;
+        // 3b. YouTube: la categoría real del video ("Music" o no), si se pudo consultar
+        if (artist.Trim().Length > 0)
+        {
+            var cat = await YouTube.IsMusic(title.Trim(), artist.Trim());
+            if (cat != null) return cat.Value;
+        }
         // 4. Canales de música de YouTube ("Artista - Topic", "...VEVO") o título con formato de canción
         if (artist.EndsWith(" - Topic", StringComparison.OrdinalIgnoreCase) || artist.Contains("VEVO", StringComparison.OrdinalIgnoreCase)) return true;
         if (SongTitle.IsMatch(title)) return true;
@@ -1298,4 +1305,60 @@ class BarWidget : Form
     [DllImport("user32.dll")] static extern bool SetForegroundWindow(IntPtr h);
 
     protected override void OnFormClosed(FormClosedEventArgs e) { if (tray != null) { tray.Visible = false; tray.Dispose(); } base.OnFormClosed(e); }
+}
+
+// Categoría de un video de YouTube a partir de título y canal (lo único que da el navegador):
+// busca el video en YouTube, comprueba que el canal coincida y lee "category" de su página.
+// Sin clave de API; si algo falla devuelve null y se usan las reglas de siempre.
+static class YouTube
+{
+    static readonly System.Net.Http.HttpClient http = MakeClient();
+    static readonly System.Collections.Concurrent.ConcurrentDictionary<string, Task<bool?>> cache = new();
+    public static event Action Learned; // una consulta lenta terminó: conviene reclasificar
+
+    static System.Net.Http.HttpClient MakeClient()
+    {
+        var h = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(6) };
+        h.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36");
+        h.DefaultRequestHeaders.TryAddWithoutValidation("Accept-Language", "en-US,en;q=0.8");
+        h.DefaultRequestHeaders.TryAddWithoutValidation("Cookie", "CONSENT=YES+1; SOCS=CAI"); // evita la página de consentimiento
+        return h;
+    }
+
+    // Espera como mucho `wait`; si no llegó a tiempo devuelve null y avisa con Learned cuando termine
+    public static async Task<bool?> IsMusic(string title, string channel, int wait = 1500)
+    {
+        string key = title + "\u0001" + channel;
+        bool fresh = false;
+        var t = cache.GetOrAdd(key, _ => { fresh = true; return Lookup(title, channel); });
+        if (t.IsCompleted) return t.Result;
+        if (await Task.WhenAny(t, Task.Delay(wait)) == t) return t.Result;
+        if (fresh) _ = t.ContinueWith(r => { if (r.Result != null) Learned?.Invoke(); });
+        return null;
+    }
+
+    static async Task<bool?> Lookup(string title, string channel)
+    {
+        try
+        {
+            var html = await http.GetStringAsync("https://www.youtube.com/results?search_query=" + Uri.EscapeDataString(title + " " + channel));
+            string id = null;
+            foreach (System.Text.RegularExpressions.Match m in System.Text.RegularExpressions.Regex.Matches(html, "\"videoRenderer\":\{\"videoId\":\"([\w-]{11})\""))
+            {
+                int end = Math.Min(html.Length, m.Index + 8000);
+                var own = System.Text.RegularExpressions.Regex.Match(html.Substring(m.Index, end - m.Index), "\"ownerText\":\{\"runs\":\[\{\"text\":\"((?:[^\"\\]|\\.)*)\"");
+                if (own.Success && Same(Unescape(own.Groups[1].Value), channel)) { id = m.Groups[1].Value; break; }
+                if (m.Index > 400000) break;
+            }
+            if (id == null) return null; // no es de YouTube o no se encontró
+            var page = await http.GetStringAsync("https://www.youtube.com/watch?v=" + id);
+            var cat = System.Text.RegularExpressions.Regex.Match(page, "\"category\":\"([^\"]+)\"");
+            if (!cat.Success) return null;
+            return cat.Groups[1].Value == "Music";
+        }
+        catch { return null; }
+    }
+
+    static string Unescape(string s) { try { return System.Text.Json.JsonSerializer.Deserialize<string>("\"" + s + "\""); } catch { return s; } }
+    static bool Same(string a, string b) => string.Equals(a.Trim(), b.Trim(), StringComparison.OrdinalIgnoreCase);
 }
